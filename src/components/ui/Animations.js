@@ -1,14 +1,51 @@
 "use client";
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 /**
  * Animation utility functions for DevCON UI components
  */
 
-// Card hover animation effect
-export function applyCardHoverEffect() {
+import { gsap } from "gsap";
+
+/**
+ * Animate section fade/slide-in when entering viewport
+ * @param {string} selector - CSS selector for the section
+ * @param {object} options - GSAP animation options
+ */
+export function useSectionReveal(selector, options = {}) {
   useEffect(() => {
-    const cards = document.querySelectorAll('.card-hover-effect');
+    if (typeof window === "undefined") return;
+    const section = document.querySelector(selector);
+    if (!section) return;
+
+    const defaultOptions = {
+      opacity: 0,
+      y: 40,
+      duration: 1,
+      ease: "power3.out",
+      ...options,
+    };
+
+    gsap.fromTo(section, defaultOptions, {
+      opacity: 1,
+      y: 0,
+      duration: defaultOptions.duration,
+      ease: defaultOptions.ease,
+      scrollTrigger: {
+        trigger: section,
+        start: "top 80%",
+        toggleActions: "play none none none",
+      },
+    });
+  }, [selector]);
+}
+
+/**
+ * Custom hook for card hover animation effect
+ */
+export function useCardHoverEffect() {
+  useEffect(() => {
+    const cards = document.querySelectorAll(".card-hover-effect");
 
     const handleMouseMove = (e) => {
       const card = e.currentTarget;
@@ -16,17 +53,17 @@ export function applyCardHoverEffect() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      card.style.setProperty('--mouse-x', `${x}px`);
-      card.style.setProperty('--mouse-y', `${y}px`);
+      card.style.setProperty("--mouse-x", `${x}px`);
+      card.style.setProperty("--mouse-y", `${y}px`);
     };
 
-    cards.forEach(card => {
-      card.addEventListener('mousemove', handleMouseMove);
+    cards.forEach((card) => {
+      card.addEventListener("mousemove", handleMouseMove);
     });
 
     return () => {
-      cards.forEach(card => {
-        card.removeEventListener('mousemove', handleMouseMove);
+      cards.forEach((card) => {
+        card.removeEventListener("mousemove", handleMouseMove);
       });
     };
   }, []);
@@ -62,14 +99,14 @@ export function pageTransition(gsap) {
         element,
         {
           opacity: 0,
-          y: 20
+          y: 20,
         },
         {
           opacity: 1,
           y: 0,
           duration: 0.8,
-          ease: 'power3.out'
-        }
+          ease: "power3.out",
+        },
       );
 
       return tl;
@@ -79,18 +116,15 @@ export function pageTransition(gsap) {
     exit: (element) => {
       const tl = gsap.timeline();
 
-      tl.to(
-        element,
-        {
-          opacity: 0,
-          y: -20,
-          duration: 0.5,
-          ease: 'power2.in'
-        }
-      );
+      tl.to(element, {
+        opacity: 0,
+        y: -20,
+        duration: 0.5,
+        ease: "power2.in",
+      });
 
       return tl;
-    }
+    },
   };
 }
 
@@ -100,22 +134,22 @@ export function staggeredReveal(gsap, elements, delay = 0.1) {
     elements,
     {
       opacity: 0,
-      y: 20
+      y: 20,
     },
     {
       opacity: 1,
       y: 0,
       stagger: delay,
       duration: 0.6,
-      ease: 'power3.out'
-    }
+      ease: "power3.out",
+    },
   );
 }
 
-// Floating animation for elements
-export function applyFloatingAnimation() {
+// Custom hook for floating animation for elements
+export function useFloatingAnimation() {
   useEffect(() => {
-    const elements = document.querySelectorAll('.floating-element');
+    const elements = document.querySelectorAll(".floating-element");
 
     elements.forEach((element, index) => {
       // Create slightly different durations for variety
@@ -124,8 +158,8 @@ export function applyFloatingAnimation() {
     });
 
     return () => {
-      elements.forEach(element => {
-        element.style.animation = '';
+      elements.forEach((element) => {
+        element.style.animation = "";
       });
     };
   }, []);
@@ -133,7 +167,8 @@ export function applyFloatingAnimation() {
 
 // Matrix-style character scramble effect
 export function characterScramble(element, finalText, duration = 2000) {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
   const finalLength = finalText.length;
   let interval;
   let currentIteration = 0;
@@ -151,13 +186,15 @@ export function characterScramble(element, finalText, duration = 2000) {
       currentIteration++;
 
       // Generate scrambled text
-      let scrambledText = '';
+      let scrambledText = "";
       for (let i = 0; i < finalLength; i++) {
         // Gradually reveal correct characters as iterations progress
-        if (i < (finalLength * (currentIteration / maxIterations))) {
+        if (i < finalLength * (currentIteration / maxIterations)) {
           scrambledText += finalText[i];
         } else {
-          scrambledText += characters.charAt(Math.floor(Math.random() * characters.length));
+          scrambledText += characters.charAt(
+            Math.floor(Math.random() * characters.length),
+          );
         }
       }
 
@@ -173,18 +210,18 @@ export function characterScramble(element, finalText, duration = 2000) {
   });
 }
 
-// Terminal cursor blink effect
-export function terminalCursorBlink() {
+// Custom hook for terminal cursor blink effect
+export function useTerminalCursorBlink() {
   useEffect(() => {
-    const cursors = document.querySelectorAll('.terminal-cursor');
+    const cursors = document.querySelectorAll(".terminal-cursor");
 
-    cursors.forEach(cursor => {
-      cursor.classList.add('blink');
+    cursors.forEach((cursor) => {
+      cursor.classList.add("blink");
     });
 
     return () => {
-      cursors.forEach(cursor => {
-        cursor.classList.remove('blink');
+      cursors.forEach((cursor) => {
+        cursor.classList.remove("blink");
       });
     };
   }, []);
@@ -248,5 +285,5 @@ export const keyframes = {
         transform: translate(-2px, 2px);
       }
     }
-  `
+  `,
 };

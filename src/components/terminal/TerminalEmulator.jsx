@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+// Require real email for registration and login
+
 // ASCII Art for the logo
 const ASCII_LOGO = `
 ██████╗ ███████╗██╗   ██╗ ██████╗ ██████╗ ███╗   ██╗
@@ -52,11 +54,25 @@ export default function TerminalEmulator({ mode = "login" }) {
 
     // Show login or register prompts based on initial mode
     if (currentMode === "login") {
-      initialLines.push({ type: "system", content: "Starting login sequence..." });
-      initialLines.push({ type: "prompt", content: "Enter username:" });
+      initialLines.push({
+        type: "system",
+        content: "Starting login sequence...",
+      });
+      initialLines.push({
+        type: "prompt",
+        content: "Enter email (must be valid):",
+      });
+      setLoginStep(1); // Start login input sequence immediately
     } else if (currentMode === "register") {
-      initialLines.push({ type: "system", content: "Starting registration sequence..." });
-      initialLines.push({ type: "prompt", content: "Enter username:" });
+      initialLines.push({
+        type: "system",
+        content: "Starting registration sequence...",
+      });
+      initialLines.push({
+        type: "prompt",
+        content: "Enter username (for display):",
+      });
+      setRegisterStep(1); // Start registration input sequence immediately
     }
 
     setLines(initialLines);
@@ -97,7 +113,15 @@ export default function TerminalEmulator({ mode = "login" }) {
     if (inputValue.trim() === "") return;
 
     // Add the current command to display
-    addLine(`${currentPrompt}${inputValue}`, "user");
+    // Mask password if previous prompt was for password
+    if (
+      (currentMode === "login" && loginStep === 2) ||
+      (currentMode === "register" && registerStep === 3)
+    ) {
+      addLine(`${currentPrompt}${"•".repeat(inputValue.length)}`, "user");
+    } else {
+      addLine(`${currentPrompt}${inputValue}`, "user");
+    }
 
     // Handle login/register flow
     if (currentMode === "login" && loginStep > 0) {
@@ -140,7 +164,7 @@ export default function TerminalEmulator({ mode = "login" }) {
           setCurrentMode("login");
           setLoginStep(1);
           addLine("Starting login sequence...", "system");
-          addLine("Enter username:", "prompt");
+          addLine("Enter email (must be valid):", "prompt");
         }
         break;
 
@@ -151,27 +175,42 @@ export default function TerminalEmulator({ mode = "login" }) {
           setCurrentMode("register");
           setRegisterStep(1);
           addLine("Starting registration sequence...", "system");
-          addLine("Enter username:", "prompt");
+          addLine("Enter username (for display):", "prompt");
         }
         break;
 
       default:
-        addLine(`Command not found: ${cmd}. Type 'help' for available commands.`, "error");
+        addLine(
+          `Command not found: ${cmd}. Type 'help' for available commands.`,
+          "error",
+        );
     }
   };
 
   const handleLoginFlow = () => {
     switch (loginStep) {
       case 1:
-        setCredentials({ ...credentials, username: inputValue });
+        // Validate email format
+        if (!inputValue.includes("@")) {
+          addLine("Error: Please enter a valid email address.", "error");
+          addLine("Enter email:", "prompt");
+          break;
+        }
+        setCredentials({ ...credentials, email: inputValue });
         setLoginStep(2);
         addLine("Enter password:", "prompt");
         break;
 
       case 2:
-        setCredentials({ ...credentials, password: inputValue });
+        setCredentials((prev) => {
+          const updated = { ...prev, password: inputValue };
+          // Call login after password is set
+          setTimeout(() => {
+            simulateLogin(updated);
+          }, 0);
+          return updated;
+        });
         setLoginStep(3);
-        simulateLogin();
         break;
     }
   };
@@ -185,31 +224,53 @@ export default function TerminalEmulator({ mode = "login" }) {
         break;
 
       case 2:
+        // Validate email format
+        if (!inputValue.includes("@")) {
+          addLine("Error: Please enter a valid email address.", "error");
+          addLine("Enter email:", "prompt");
+          break;
+        }
         setCredentials({ ...credentials, email: inputValue });
         setRegisterStep(3);
         addLine("Enter password:", "prompt");
         break;
 
       case 3:
-        setCredentials({ ...credentials, password: inputValue });
+        setCredentials((prev) => {
+          const updated = { ...prev, password: inputValue };
+          // Call registration after password is set
+          setTimeout(() => {
+            simulateRegistration(updated);
+          }, 0);
+          return updated;
+        });
         setRegisterStep(4);
-        simulateRegistration();
         break;
     }
   };
 
-  const simulateLogin = () => {
+  const simulateLogin = async (creds) => {
     setLoading(true);
     addLine("Authenticating...", "system");
 
-    setTimeout(() => {
-      setLoading(false);
-      // In a real app, you would verify credentials here
-      const success = true; // Simulate successful login
+    // Use Supabase for login
+    try {
+      const { email, password } = creds || credentials;
+      // Logging for debugging Supabase integration
+      addLine(`Attempting login with email: ${email}`, "system");
+      addLine(`Password length: ${password ? password.length : 0}`, "system");
+      const { error } = await (
+        await import("@/auth/supabase")
+      ).default.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (success) {
+      setLoading(false);
+
+      if (!error) {
         addLine("Login successful! Welcome back.", "success");
-        setCurrentPrompt(`${credentials.username}@devcon:~$ `);
+        setCurrentPrompt(`${email}@devcon:~$ `);
         setCurrentMode("command");
         setLoginStep(0);
 
@@ -217,25 +278,61 @@ export default function TerminalEmulator({ mode = "login" }) {
         addLine("Redirecting to dashboard...", "system");
         setTimeout(() => router.push("/dashboard"), 1500);
       } else {
-        addLine("Login failed. Invalid username or password.", "error");
+        // Check for Supabase unconfirmed email error
+        if (
+          error.message &&
+          error.message.toLowerCase().includes("email not confirmed")
+        ) {
+          addLine(
+            "Login failed: Email not confirmed. Please check your inbox for a confirmation link and verify your email before logging in.",
+            "error",
+          );
+        } else {
+          addLine("Login failed. Invalid email or password.", "error");
+        }
         setLoginStep(1);
-        addLine("Enter username:", "prompt");
+        addLine("Enter email:", "prompt");
       }
-    }, 2000);
+    } catch (err) {
+      setLoading(false);
+      if (
+        err.message &&
+        err.message.toLowerCase().includes("email not confirmed")
+      ) {
+        addLine(
+          "Login failed: Email not confirmed. Please check your inbox for a confirmation link and verify your email before logging in.",
+          "error",
+        );
+      } else {
+        addLine("Login failed due to an unexpected error.", "error");
+      }
+      setLoginStep(1);
+      addLine("Enter email:", "prompt");
+    }
   };
 
-  const simulateRegistration = () => {
+  const simulateRegistration = async (creds) => {
     setLoading(true);
     addLine("Creating account...", "system");
 
-    setTimeout(() => {
-      setLoading(false);
-      // In a real app, you would create an account here
-      const success = true; // Simulate successful registration
+    // Use Supabase for registration
+    try {
+      const { email, password } = creds || credentials;
+      // Logging for debugging Supabase integration
+      addLine(`Attempting registration with email: ${email}`, "system");
+      addLine(`Password length: ${password ? password.length : 0}`, "system");
+      const { error } = await (
+        await import("@/auth/supabase")
+      ).default.auth.signUp({
+        email,
+        password,
+      });
 
-      if (success) {
+      setLoading(false);
+
+      if (!error) {
         addLine("Registration successful! Account created.", "success");
-        setCurrentPrompt(`${credentials.username}@devcon:~$ `);
+        setCurrentPrompt(`${email}@devcon:~$ `);
         setCurrentMode("command");
         setRegisterStep(0);
 
@@ -244,11 +341,19 @@ export default function TerminalEmulator({ mode = "login" }) {
         addLine("Redirecting to dashboard...", "system");
         setTimeout(() => router.push("/dashboard"), 1500);
       } else {
-        addLine("Registration failed. Username or email already exists.", "error");
+        addLine(
+          "Registration failed. Email may already exist or is invalid.",
+          "error",
+        );
         setRegisterStep(1);
         addLine("Enter username:", "prompt");
       }
-    }, 2000);
+    } catch (err) {
+      setLoading(false);
+      addLine("Registration failed due to an unexpected error.", "error");
+      setRegisterStep(1);
+      addLine("Enter username:", "prompt");
+    }
   };
 
   // Handle arrow keys for command history
@@ -284,7 +389,9 @@ export default function TerminalEmulator({ mode = "login" }) {
       const inputLower = inputValue.toLowerCase();
 
       if (inputLower) {
-        const matchedCommand = commands.find(cmd => cmd.startsWith(inputLower));
+        const matchedCommand = commands.find((cmd) =>
+          cmd.startsWith(inputLower),
+        );
         if (matchedCommand) {
           setInputValue(matchedCommand);
         }
@@ -300,15 +407,22 @@ export default function TerminalEmulator({ mode = "login" }) {
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
         </div>
-        <div className="text-xs opacity-80">devcon-terminal@{currentMode}.sh</div>
+        <div className="text-xs opacity-80">
+          devcon-terminal@{currentMode}.sh
+        </div>
         <div className="text-xs opacity-80">v1.0.0</div>
       </div>
 
       <div className="terminal-output flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-green-700 scrollbar-track-black">
         {lines.map((line, i) => (
-          <div key={i} className={`terminal-line ${line.type === 'blank' ? 'h-4' : 'mb-1'}`}>
+          <div
+            key={i}
+            className={`terminal-line ${line.type === "blank" ? "h-4" : "mb-1"}`}
+          >
             {line.type === "ascii" ? (
-              <pre className="text-green-500 text-xs sm:text-sm whitespace-pre">{line.content}</pre>
+              <pre className="text-green-500 text-xs sm:text-sm whitespace-pre">
+                {line.content}
+              </pre>
             ) : line.type === "user" ? (
               <div className="text-white">{line.content}</div>
             ) : line.type === "system" ? (
@@ -327,7 +441,10 @@ export default function TerminalEmulator({ mode = "login" }) {
         <div ref={terminalEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="terminal-input-container mt-2 flex items-center">
+      <form
+        onSubmit={handleSubmit}
+        className="terminal-input-container mt-2 flex items-center"
+      >
         <span className="text-green-400 mr-2">{currentPrompt}</span>
         <input
           ref={inputRef}
@@ -371,8 +488,13 @@ export default function TerminalEmulator({ mode = "login" }) {
           animation: blink 1s step-end infinite;
         }
         @keyframes blink {
-          from, to { opacity: 1; }
-          50% { opacity: 0; }
+          from,
+          to {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0;
+          }
         }
       `}</style>
     </div>

@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
+import { useSectionReveal } from "@/components/ui/Animations";
 import {
   FaReact,
   FaNodeJs,
@@ -90,52 +91,80 @@ function App() {
   // --- Header Component ---
   const Header = ({ progress }) => {
     return (
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#1e1e1e]/80 backdrop-blur-sm border-b border-gray-700">
-        <div className="container mx-auto px-4 sm:px-8 flex justify-between items-center h-20">
-          <div className="text-2xl font-mono text-green-400 code-text-glow">
-            // DevCON
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/10 backdrop-blur-lg border-b border-white/20 shadow-lg">
+        <nav className="container mx-auto px-4 flex justify-between items-center h-16">
+          <div className="flex items-center gap-2 font-bold text-lg text-white">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 32 32"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="inline-block align-middle"
+              style={{ marginRight: "0.5rem" }}
+            >
+              <circle
+                cx="16"
+                cy="16"
+                r="15"
+                stroke="#39ff14"
+                strokeWidth="2"
+                fill="#1e1e1e"
+              />
+              <text
+                x="16"
+                y="21"
+                textAnchor="middle"
+                fontFamily="monospace"
+                fontSize="14"
+                fill="#39ff14"
+              >
+                DC
+              </text>
+            </svg>
+            DevCON
           </div>
-          <nav className="hidden md:flex items-center gap-8 font-mono">
+          <div className="hidden md:flex gap-8">
             <a
               href="#features"
-              className="text-gray-400 hover:text-green-400 transition-colors"
+              className="text-white/80 hover:text-white transition"
             >
               Features
             </a>
             <a
               href="#testimonials"
-              className="text-gray-400 hover:text-green-400 transition-colors"
+              className="text-white/80 hover:text-white transition"
             >
               Testimonials
             </a>
             <a
               href="#projects"
-              className="text-gray-400 hover:text-green-400 transition-colors"
+              className="text-white/80 hover:text-white transition"
             >
               Projects
             </a>
             <a
               href="#tech-stack"
-              className="text-gray-400 hover:text-green-400 transition-colors"
+              className="text-white/80 hover:text-white transition"
             >
-              Stack
+              Tech Stack
             </a>
-          </nav>
-          <div className="flex gap-3">
+          </div>
+          <div className="flex gap-2">
             <a
               href="/auth/login"
-              className="px-4 py-2 bg-green-500 text-black font-mono font-bold rounded hover:bg-green-400 transition-colors code-button-glow"
+              className="bg-white/20 text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/30 transition"
             >
               Login
             </a>
             <a
               href="/auth/register"
-              className="px-4 py-2 bg-gray-700/70 text-green-400 font-mono font-bold rounded border border-green-500 hover:bg-gray-700 transition-colors"
+              className="bg-green-500 text-black px-4 py-2 rounded-lg border border-green-600 hover:bg-green-400 transition"
             >
               Register
             </a>
           </div>
-        </div>
+        </nav>
       </header>
     );
   };
@@ -365,6 +394,15 @@ function App() {
   const Home = () => {
     const main = useRef(null);
     const progressRef = useRef(null);
+    const [showScrollToTop, setShowScrollToTop] = useState(false);
+
+    useEffect(() => {
+      const handleScroll = () => {
+        setShowScrollToTop(window.scrollY > 300);
+      };
+      window.addEventListener("scroll", handleScroll);
+      return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
     useEffect(() => {
       // Check if we're in a browser environment
@@ -824,6 +862,8 @@ function App() {
               id="testimonials"
               className="testimonials-section mt-28 w-full flex flex-col items-center px-4 sm:px-8 scroll-mt-20"
             >
+              {/* GSAP Reveal Animation */}
+              {useSectionReveal && useSectionReveal("#testimonials")}
               <h2 className="section-title text-4xl font-bold mb-4 text-center font-mono">
                 <span className="text-orange-400">What</span>
                 <span className="text-gray-400">.</span>
@@ -879,6 +919,8 @@ function App() {
               id="projects"
               className="projects-section mt-28 w-full flex flex-col items-center px-4 sm:px-8 scroll-mt-20"
             >
+              {/* GSAP Reveal Animation */}
+              {useSectionReveal && useSectionReveal("#projects")}
               <h2 className="section-title text-4xl font-bold mb-4 text-center font-mono">
                 <span className="text-orange-400">Featured</span>
                 <span className="text-gray-400">.</span>
@@ -940,6 +982,8 @@ function App() {
               id="tech-stack"
               className="tech-stack-section mt-28 w-full flex flex-col items-center px-4 sm:px-8 scroll-mt-20"
             >
+              {/* GSAP Reveal Animation */}
+              {useSectionReveal && useSectionReveal("#tech-stack")}
               <h2 className="section-title text-4xl font-bold mb-4 text-center font-mono">
                 <span className="text-orange-400">Tech</span>
                 <span className="text-gray-400">.</span>
@@ -1007,6 +1051,16 @@ function App() {
               `}</style>
             </section>
             <Footer />
+            {/* Scroll-to-Top Button */}
+            <button
+              id="scrollToTopBtn"
+              aria-label="Scroll to top"
+              className="fixed bottom-8 right-8 z-50 bg-green-500 text-black px-4 py-2 rounded-full shadow-lg font-mono font-bold hover:bg-green-400 transition-colors"
+              style={{ display: showScrollToTop ? "block" : "none" }}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
+              ↑ Top
+            </button>
           </div>
         </div>
       </>

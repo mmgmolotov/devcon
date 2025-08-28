@@ -1,20 +1,19 @@
-devcon/src/components/LoginForm.tsx
-```
-
-```tsx
-import React from 'react';
+import React from "react";
 
 const LoginForm: React.FC = () => {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     // Placeholder for form submission logic
-    console.log('Form submitted');
+    console.log("Form submitted");
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700"
+        >
           Email
         </label>
         <input
@@ -26,7 +25,10 @@ const LoginForm: React.FC = () => {
         />
       </div>
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700"
+        >
           Password
         </label>
         <input
