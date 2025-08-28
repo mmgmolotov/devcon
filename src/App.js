@@ -773,7 +773,6 @@ function App() {
                 </div>
               </div>
             </section>
-
             {/* Features Section */}
             <section
               id="features"
@@ -820,7 +819,6 @@ function App() {
                 ))}
               </div>
             </section>
-
             {/* Testimonials Section */}
             <section
               id="testimonials"
@@ -937,7 +935,6 @@ function App() {
                 ))}
               </div>
             </section>
-
             {/* Tech Stack Section */}
             <section
               id="tech-stack"
