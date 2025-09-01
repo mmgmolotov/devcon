@@ -1,14 +1,17 @@
 import React from "react";
 
+import React from "react";
+import { Card } from "@/components/ui/card";
+
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-gradient-to-r from-devdark via-black to-devdark text-gold py-8 mt-12 shadow-inner font-mono">
+    <Card className="bg-gradient-to-r from-green-700 via-black to-green-700 text-green-300 py-8 mt-12 shadow-inner font-mono border-none">
       <div className="container mx-auto flex flex-col md:flex-row items-center justify-between px-4">
         <div className="mb-2 md:mb-0">
-          <p className="text-sm font-bold text-gold drop-shadow-gold">
+          <p className="text-sm font-bold text-green-300 drop-shadow-green">
             © {new Date().getFullYear()} DevCON. All rights reserved.
           </p>
-          <p className="text-xs mt-1 text-gold/80 font-mono">
+          <p className="text-xs mt-1 text-green-200 font-mono">
             Connect with developers worldwide and build amazing projects
             together.
           </p>
@@ -19,7 +22,7 @@ const Footer: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
-            className="hover:text-gold transition"
+            className="hover:text-green-400 transition"
           >
             <svg
               width="24"
@@ -36,7 +39,7 @@ const Footer: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Twitter"
-            className="hover:text-gold transition"
+            className="hover:text-green-400 transition"
           >
             <svg
               width="24"
@@ -51,7 +54,7 @@ const Footer: React.FC = () => {
           <a
             href="mailto:contact@devcon.com"
             aria-label="Email"
-            className="hover:text-gold transition"
+            className="hover:text-green-400 transition"
           >
             <svg
               width="24"
@@ -65,7 +68,7 @@ const Footer: React.FC = () => {
           </a>
         </div>
       </div>
-    </footer>
+    </Card>
   );
 };
 

@@ -93,7 +93,7 @@ function App() {
     return (
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/10 backdrop-blur-lg border-b border-white/20 shadow-lg">
         <nav className="container mx-auto px-4 flex justify-between items-center h-16">
-          <div className="flex items-center gap-2 font-bold text-lg text-white">
+          <div className="flex items-center gap-2 font-mono font-extrabold text-2xl tracking-wide text-green-400 drop-shadow-lg uppercase">
             <svg
               width="32"
               height="32"
@@ -107,7 +107,7 @@ function App() {
                 cx="16"
                 cy="16"
                 r="15"
-                stroke="#39ff14"
+                stroke="#22c55e"
                 strokeWidth="2"
                 fill="#1e1e1e"
               />
@@ -117,7 +117,7 @@ function App() {
                 textAnchor="middle"
                 fontFamily="monospace"
                 fontSize="14"
-                fill="#39ff14"
+                fill="#22c55e"
               >
                 DC
               </text>
