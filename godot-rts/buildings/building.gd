@@ -85,6 +85,8 @@ func add_build_work(delta: float) -> void:
 
 func _complete() -> void:
 	constructed = true
+	if hp > max_hp * 0.97:
+		hp = max_hp  # absorb float rounding from incremental construction
 	queue_redraw()
 	Game.building_completed.emit(self)
 	Game.resources_changed.emit()

@@ -3,10 +3,12 @@ extends Node
 ## fighting) and saves a screenshot. Needs a display (e.g. xvfb-run):
 ##   godot --path . res://tests/screenshot.tscn -- --out=/tmp/shot.png --time=20
 
+## Extra args: --speed=10 (fast-forward), --focus=enemy (watch the AI base).
 var out_path := "user://screenshot.png"
 var run_time := 20.0
 var _t := 0.0
 var _done := false
+var _focus := ""
 
 
 func _ready() -> void:
@@ -15,6 +17,11 @@ func _ready() -> void:
 			out_path = a.substr(6)
 		elif a.begins_with("--time="):
 			run_time = float(a.substr(7))
+		elif a.begins_with("--speed="):
+			Engine.max_physics_steps_per_frame = 64
+			Engine.time_scale = float(a.substr(8))
+		elif a.begins_with("--focus="):
+			_focus = a.substr(8)
 	add_child(load("res://main/main.tscn").instantiate())
 	var vills := Game.units.filter(func(u): return u.team == Game.PLAYER)
 	var tc := Game.get_town_center(Game.PLAYER)
@@ -32,6 +39,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _focus == "enemy" and Game.get_town_center(Game.ENEMY) != null:
+		Game.camera.center_on(Game.get_town_center(Game.ENEMY).position + Vector2(-120, 60))
 	if _t >= run_time and not _done:
 		_done = true
 		await RenderingServer.frame_post_draw
