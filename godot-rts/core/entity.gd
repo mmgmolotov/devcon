@@ -14,6 +14,14 @@ var selected := false:
 		queue_redraw()
 
 
+## Keeps the global registry free of stale references when a scene is
+## unloaded (e.g. "Play Again") without the entity dying normally.
+func _exit_tree() -> void:
+	Game.units.erase(self)
+	Game.buildings.erase(self)
+	Game.selected.erase(self)
+
+
 func get_display_name() -> String:
 	return "Entity"
 

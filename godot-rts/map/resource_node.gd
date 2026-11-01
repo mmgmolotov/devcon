@@ -21,6 +21,10 @@ func _ready() -> void:
 	Game.resources.append(self)
 
 
+func _exit_tree() -> void:
+	Game.resources.erase(self)
+
+
 func get_display_name() -> String:
 	match type:
 		"wood":

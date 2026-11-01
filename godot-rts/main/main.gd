@@ -10,8 +10,13 @@ const START_VILLAGERS := 3
 @onready var camera: RTSCamera = $Camera
 
 
-func _ready() -> void:
+func _enter_tree() -> void:
+	# Runs before any child's _ready, so the HUD never sees a stale match.
 	Game.reset()
+	Game.map = null
+
+
+func _ready() -> void:
 	Game.map = game_map
 	Game.entities = entities
 	Game.effects = effects

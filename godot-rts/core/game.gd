@@ -36,7 +36,7 @@ const UNIT_DATA := {
 	"villager": {
 		"name": "Villager", "hp": 40.0, "damage": 3.0, "range": 14.0, "cooldown": 1.5,
 		"speed": 72.0, "sight": 120.0, "radius": 9.0, "time": 10.0,
-		"cost": {"gold": 50}, "building_mult": 1.0,
+		"cost": {"wood": 50}, "building_mult": 1.0,
 	},
 	"swordsman": {
 		"name": "Swordsman", "hp": 90.0, "damage": 9.0, "range": 14.0, "cooldown": 1.2,
