@@ -1,0 +1,8 @@
+# Godot 4 generated files
+.godot/
+# Export output
+build/
+*.apk
+*.aab
+*.keystore
+export_credentials.cfg
