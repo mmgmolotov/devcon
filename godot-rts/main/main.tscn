@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://main/main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://map/game_map.tscn" id="2"]
 [ext_resource type="Script" path="res://main/rts_camera.gd" id="3"]
 [ext_resource type="Script" path="res://main/input_controller.gd" id="4"]
 [ext_resource type="Script" path="res://ui/placement_ghost.gd" id="5"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="6"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -28,3 +29,5 @@ script = ExtResource("4")
 camera_path = NodePath("../Camera")
 hud_path = NodePath("../HUD")
 ghost_path = NodePath("../PlacementGhost")
+
+[node name="HUD" parent="." instance=ExtResource("6")]
