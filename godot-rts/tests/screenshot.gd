@@ -12,6 +12,7 @@ var _focus := ""
 var _zoom := 0.0
 var _reveal := false
 var _assault := false
+var _showcase := false
 
 
 func _ready() -> void:
@@ -25,6 +26,8 @@ func _ready() -> void:
 			Engine.time_scale = float(a.substr(8))
 		elif a.begins_with("--zoom="):
 			_zoom = float(a.substr(7))
+		elif a == "--showcase":
+			_showcase = true
 		elif a == "--reveal":
 			_reveal = true
 		elif a.begins_with("--focus="):
@@ -43,6 +46,23 @@ func _ready() -> void:
 	vills[2].command_build(b)
 	Game.set_selection([vills[0], vills[1]])
 	Game.fog.reveal_all = _reveal
+	if _showcase:
+		var base := Game.map.start_cells[0]
+		for spec in [["mill", Vector2i(-3, -3)], ["farm", Vector2i(-6, -1)], ["lumber_camp", Vector2i(4, -6)],
+				["watch_tower", Vector2i(8, -2)], ["monastery", Vector2i(0, -9)], ["barracks", Vector2i(4, -10)],
+				["mining_camp", Vector2i(10, -6)]]:
+			var bc: Vector2i = base + spec[1]
+			if Game.map.is_area_free(bc, Game.BUILDING_DATA[spec[0]].size):
+				var sb := Game.spawn_building(spec[0], Game.PLAYER, bc, spec[0] != "farm")
+				if spec[0] == "farm":
+					sb.build_progress = 999.0
+					sb.add_build_work(0.0)
+		var sp := Game.map.start_center(0) + Vector2(160, -150)
+		for i in 3:
+			Game.spawn_unit("knight", Game.PLAYER, sp + Vector2(i * 30, 0))
+			Game.spawn_unit("spearman", Game.PLAYER, sp + Vector2(i * 30, 30))
+		Game.spawn_unit("monk", Game.PLAYER, sp + Vector2(100, 15))
+		Game.spawn_unit("archer", Game.PLAYER, sp + Vector2(-30, 15))
 	if _zoom > 0.0:
 		Game.camera.zoom = Vector2(_zoom, _zoom)
 		Game.camera.center_on(tc.position + Vector2(120, -40))

@@ -2,10 +2,16 @@
 
 An original, compact real-time strategy game for Android phones in landscape.
 Gather resources, grow your village, raise an army and destroy the enemy Town Center
-before they destroy yours. All art is procedural (drawn in code and shaders); there
-are no third-party or copyrighted assets.
+before they destroy yours. Buildings, terrain, resources and effects are drawn
+procedurally in code and shaders. Units and animals use openly licensed pixel art
+(Liberated Pixel Cup, CC-BY / CC-BY-SA), credited in [CREDITS.md](CREDITS.md) and in-game.
 
 ## Look and feel
+
+- **Sprite units**: villagers, swordsmen, spearmen, archers, knights and monks are
+  animated pixel-art sprites (4 directions: walking, swinging axes/picks/hammers,
+  sword slashes, spear thrusts, bow shots, healing, death), in team colours. Sheep,
+  deer and boars graze and run. See [CREDITS.md](CREDITS.md).
 
 - **3/4 top-down medieval style**: stone-keep Town Center with towers and banners,
   timber-frame thatched houses, a barracks hall with weapon racks, and construction
@@ -25,32 +31,47 @@ are no third-party or copyrighted assets.
 
 | | |
 |---|---|
-| **Map** | 64×64 tiles, procedurally generated and point-symmetric (fair for both sides): grass, forests (wood), gold mines and stone quarries |
-| **Start** | 1 Town Center, 3 villagers, 200 wood, 100 gold |
+| **Map** | 64×64 tiles, procedurally generated and point-symmetric (fair for both sides): forests, gold, stone, berry bushes, ponds, sheep, deer herds and wild boars |
+| **Start** | 1 Town Center, 3 villagers, 200 food, 200 wood, 100 gold |
+| **Resources** | Food (berries, farms, hunting), wood, gold, stone |
 | **Win / lose** | Destroy the enemy Town Center / lose your own |
 
 **Units**
 
 | Unit | Cost | Trained at | Notes |
 |---|---|---|---|
-| Villager | 50 wood | Town Center (10 s) | Gathers, builds, weak in combat |
-| Swordsman | 20 wood, 50 gold | Barracks (14 s) | Tough melee unit, bonus vs buildings |
-| Archer | 30 wood, 40 gold | Barracks (14 s) | Ranged (150 px), weak vs buildings |
+| Villager | 50 food | Town Center | Gathers, hunts, farms, builds |
+| Swordsman | 60 food, 20 gold | Barracks | Solid melee infantry |
+| Spearman | 35 food, 25 wood | Barracks | Cheap, longer reach, ×3 damage vs knights |
+| Archer | 30 wood, 40 gold | Barracks | Ranged (150 px), weak vs buildings |
+| Knight | 80 food, 75 gold | Barracks | Heavily armoured, slow, hits hard |
+| Monk | 100 gold | Monastery | Heals nearby wounded allies |
 
-**Buildings**
+**Buildings** (two pages in the villager menu: *Economy* / *Military*)
 
-| Building | Cost | Build time | Notes |
-|---|---|---|---|
-| Town Center | – | – | +5 pop, trains villagers, resource drop-off, shoots arrows |
-| House | 30 wood | 15 s | +5 population |
-| Barracks | 150 wood, 50 stone | 30 s | Trains swordsmen and archers |
+| Building | Cost | Notes |
+|---|---|---|
+| Town Center | – | +5 pop, trains villagers, drop-off for everything, shoots arrows |
+| House | 30 wood | +5 population |
+| Farm | 60 wood | Walkable field with 300 food; villagers farm it |
+| Mill | 100 wood | Food drop-off (sails turn) |
+| Lumber Camp | 100 wood | Wood drop-off |
+| Mining Camp | 100 wood | Gold and stone drop-off |
+| Barracks | 150 wood, 50 stone | Swordsman, Spearman, Archer, Knight |
+| Watch Tower | 50 wood, 100 stone | Shoots arrows at enemies in range |
+| Monastery | 100 wood, 150 stone | Trains monks |
+
+**Animals**: sheep graze near each base (100 food each), deer run away from people
+(140 food), and wild boars fight back (300 food, so bring several villagers). Tap an
+animal with villagers selected to hunt it; they butcher the carcass automatically.
 
 Population cap is 60. More villagers working on a building finish it faster.
 
-**Enemy AI**: keeps its villagers gathering a balanced mix of resources, trains villagers,
-builds houses before it runs out of population, builds a barracks, trains a mixed army and
-defends its base. The first attack wave arrives at about 4:00, then every 2.5 minutes, with
-waves getting larger over time.
+**Enemy AI**: keeps its villagers on a balanced mix of food, wood, gold and stone, builds
+farms when wild food runs out, adds lumber and mining camps when resources are far
+away, builds houses before it runs out of population, and trains a mixed army
+(swordsmen, archers, spearmen, knights). The first attack comes at about 5:00 with at
+most 4 units, and every 2.5 minutes after that a larger wave follows.
 
 ## Controls
 
@@ -61,16 +82,19 @@ waves getting larger over time.
 | One-finger drag | Left drag | Box-select your units |
 | Tap ground (units selected) | Left click | Move |
 | Tap enemy (units selected) | Left click | Attack |
-| Tap tree/mine (villagers selected) | Left click | Gather |
+| Tap tree/mine/bush/farm (villagers selected) | Left click | Gather |
+| Tap an animal (villagers selected) | Left click | Hunt it, then butcher the carcass |
+| Tap a wounded ally (monks selected) | Left click | Heal |
 | Tap unfinished building (villagers selected) | Left click | Help build |
 | Tap ground (Town Center/Barracks selected) | Left click | Set rally point |
 | Two-finger drag | Right/middle drag, arrow keys | Pan camera |
 | Pinch | Mouse wheel | Zoom |
 | Tap/drag minimap | Click minimap | Jump camera |
 
-Bottom bar buttons: **House**, **Barracks**, **Stop** (villagers), **Villager / Swordsman /
-Archer**, **Cancel** (buildings) and **X** to deselect. Top bar: **Idle Villager** cycles
-through idle villagers, **Army** selects all soldiers.
+Bottom bar buttons: building pictures plus **Military/Economy** (switch build page) and
+**Stop** for villagers, unit pictures plus **Cancel** for buildings, and **X** to deselect.
+Top bar: **Idle** cycles through idle villagers, **Army** selects all soldiers, and **i**
+shows the art credits.
 
 To place a building, press its button, tap the map to move the green/red ghost (or drag it),
 then tap the ghost again or press **Build**.
@@ -110,6 +134,12 @@ godot-rts/
 │   ├── main.gd/.tscn      # Match bootstrap
 │   ├── input_controller.gd# Touch/mouse gestures to commands
 │   └── rts_camera.gd      # Pan/zoom camera clamped to the map
+├── art/
+│   ├── units/             # Generated unit sprite sheets + sheets.json (frame layout)
+│   └── animals/           # Sheep, deer, boar sprites
+├── tools/
+│   ├── build_unit_sprites.py   # Rebuilds art/units from LPC layers (needs Pillow)
+│   └── build_animal_sprites.py # Rebuilds art/animals
 └── tests/
     ├── smoke_test.*       # Headless end-to-end test (plays a whole match)
     └── screenshot.*       # Dev helper that renders a screenshot
@@ -147,6 +177,17 @@ checks: starting state, tap controls, training, construction, population cap, ga
 AI building a barracks, the AI sending a wave that reaches your base, victory by destroying
 the enemy Town Center, a clean restart, and defeat when you lose yours. It exits non-zero on
 any failed check or engine/script error.
+
+### Regenerating sprites (optional)
+
+The sprite sheets are committed, so you don't need to do this. To change outfits or
+team colours, edit the recipes in `tools/build_unit_sprites.py` and run:
+
+```bash
+pip install pillow
+python3 tools/build_unit_sprites.py
+python3 tools/build_animal_sprites.py
+```
 
 ## Exporting the APK (Android)
 
