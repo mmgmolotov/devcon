@@ -27,6 +27,9 @@ func _ready() -> void:
 	_check(Game.resources.size() > 200, "map has resources (%d)" % Game.resources.size())
 	_check(Game.players[0].wood == 200 and Game.players[0].gold == 100, "starting resources")
 	_check(Game.get_pop_cap(0) == 5, "town center gives 5 population")
+	_check(Game.fog.is_visible_at(Game.get_town_center(0).position), "fog: own base is visible")
+	_check(not Game.fog.is_explored_at(Game.get_town_center(1).position), "fog: enemy base starts unexplored")
+	_check(not Game.get_town_center(1).visible, "fog: unexplored enemy Town Center is hidden")
 	_test_tap_controls()
 	_give_player_orders()
 

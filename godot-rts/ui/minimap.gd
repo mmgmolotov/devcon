@@ -49,13 +49,15 @@ func _draw() -> void:
 			var c: Color = Color(0.1, 0.3, 0.1) if r.type == "wood" else Game.RESOURCE_COLORS[r.type]
 			draw_rect(Rect2(r.position * k - cell * 0.5, cell), c)
 	for b in Game.buildings:
-		if not b.dead:
+		if not b.dead and b.visible:
 			var rect: Rect2 = b.get_rect()
 			draw_rect(Rect2(rect.position * k, rect.size * k), Game.TEAM_COLORS[b.team])
 			draw_rect(Rect2(rect.position * k, rect.size * k), Color.BLACK, false, 1.0)
 	for u in Game.units:
-		if not u.dead:
+		if not u.dead and u.visible:
 			draw_rect(Rect2(u.position * k - Vector2(2, 2), Vector2(4, 4)), Game.TEAM_COLORS[u.team].lightened(0.2))
+	if Game.fog != null and Game.fog.texture != null:
+		draw_texture_rect(Game.fog.texture, Rect2(Vector2.ZERO, size), false)
 	if Game.camera != null:
 		var v: Rect2 = Game.camera.visible_world_rect()
 		draw_rect(Rect2(v.position * k, v.size * k).intersection(Rect2(Vector2.ZERO, size)), Color.WHITE, false, 1.5)

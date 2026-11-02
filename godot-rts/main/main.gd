@@ -27,6 +27,7 @@ func _ready() -> void:
 	game_map.generate(MAP_SEED)
 	for team in 2:
 		_spawn_base(team)
+	$Fog.setup()
 	camera.center_on(game_map.start_center(Game.PLAYER) + Vector2(160, -60))
 
 
