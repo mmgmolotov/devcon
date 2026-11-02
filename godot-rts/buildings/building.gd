@@ -118,6 +118,8 @@ func _complete() -> void:
 	Game.building_completed.emit(self)
 	Game.resources_changed.emit()
 	Game.notify_player(team, "%s complete" % data.name)
+	if team == Game.PLAYER:
+		Sound.play("complete")
 
 
 # --- Training --------------------------------------------------------------------
@@ -209,6 +211,8 @@ func _spawn(unit_type: String) -> void:
 	if not ring.is_empty():
 		pos = Game.map.cell_center(ring[0])
 	var u := Game.spawn_unit(unit_type, team, pos)
+	if team == Game.PLAYER:
+		Sound.play("confirm", null, -6.0)
 	Game.resources_changed.emit()
 	if has_rally:
 		var occ = Game.map.occupancy.get(Game.map.world_to_cell(rally_point))
@@ -243,6 +247,7 @@ func die() -> void:
 	var s := Vector2(size) * Game.TILE
 	Game.spawn_decal("rubble", position, {"size": s, "life": 30.0})
 	Game.emit_fx("debris", position, 18)
+	Sound.play("collapse", position)
 	Game.emit_fx("dust", position, 14)
 	Game.map.free_area(cell, size)
 	queue.clear()

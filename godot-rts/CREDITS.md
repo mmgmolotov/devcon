@@ -8,6 +8,17 @@ licences. They are attributed below as those licences require. Modified versions
 (composited, recoloured and downscaled by `tools/build_unit_sprites.py` and
 `tools/build_animal_sprites.py`) are shared under the same licences.
 
+## Audio (all CC0 / public domain)
+
+- **Music** (`audio/music/`) and some effects (arrows, hits, healing, victory/defeat
+  jingles): "Ninja Adventure Asset Pack" by **Pixel-boy** and **AAA**, CC0.
+  https://pixel-boy.itch.io/ninja-adventure-asset-pack
+- **Sound effects** (chopping, mining, building, swords, stones, coins, UI): Kenney's
+  "RPG Audio", "Impact Sounds", "Foley Sounds" and "Interface Sounds" by **Kenney**
+  (www.kenney.nl), CC0.
+- **Voice lines** ("Prepare yourself", "You win", "You lose", "Fight"): Kenney's
+  "Voiceover Pack: Fighter" by **Kenney**, CC0.
+
 ## Animals
 
 - **Sheep, wild boar** (`art/animals/sheep.png`, `boar.png`): "LPC style farm animals"

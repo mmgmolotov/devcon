@@ -327,6 +327,7 @@ func _process_heal(delta: float) -> void:
 		if _dust_timer <= 0.0:
 			_dust_timer = 0.5
 			Game.emit_fx("heal", target.position + Vector2(0, -18), 3)
+			Sound.play("heal", position, -8.0)
 
 
 func _process_attack(delta: float) -> void:
@@ -377,9 +378,13 @@ func _strike(t: Entity) -> void:
 		dmg *= data.get("building_mult", 1.0)
 	elif t is Unit:
 		dmg *= data.get("bonus", {}).get(t.type, 1.0)
+	if team == Game.PLAYER or t.team == Game.PLAYER:
+		Sound.notify_combat()
 	if ranged:
 		Game.spawn_projectile(self, t, dmg)
+		Sound.play("arrow", position, -5.0)
 	else:
+		Sound.play("sword" if t is Unit and not t.is_animal else "hit", position, -3.0)
 		Game.emit_fx("clang" if t is Unit else "dust", t.nearest_point_to(position) + Vector2(0, -10), 4)
 		t.take_damage(dmg, self)
 
@@ -409,6 +414,7 @@ func _process_gather(delta: float) -> void:
 				carry_type = resource_target.type
 			var fx_kind: String = {"wood": "wood", "gold": "gold", "stone": "stone"}.get(resource_target.type, "dust")
 			Game.emit_fx(fx_kind, resource_target.nearest_point_to(position) + Vector2(0, -6), 3)
+			Sound.play({"wood": "chop", "gold": "mine", "stone": "mine"}.get(resource_target.type, "gather"), position, -4.0)
 			carry_amount += resource_target.harvest(1)
 			queue_redraw()
 
@@ -429,6 +435,8 @@ func _process_return(delta: float) -> void:
 	if _approach(dropoff, WORK_RANGE, delta):
 		if carry_amount > 0:
 			Game.add_resource(team, carry_type, carry_amount)
+			if team == Game.PLAYER and carry_type == "gold":
+				Sound.play("coins", position, -6.0)
 		carry_amount = 0
 		queue_redraw()
 		_clear_path()
@@ -450,6 +458,7 @@ func _process_build(delta: float) -> void:
 		if _dust_timer <= 0.0:
 			_dust_timer = 0.6
 			Game.emit_fx("dust", target.nearest_point_to(position), 2)
+			Sound.play("build", position, -4.0)
 
 
 # --- Movement --------------------------------------------------------------------
@@ -547,6 +556,7 @@ func die() -> void:
 			Game.spawn_decal("sprite", position, {"texture": _sprite.texture,
 				"region": Rect2((hurt.frames - 1) * c, hurt.y, c, c), "offset": _sprite.offset})
 	Game.emit_fx("dust", position, 4)
+	Sound.play("death", position, -6.0)
 	super.die()
 
 

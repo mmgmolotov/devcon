@@ -31,6 +31,9 @@ func _ready() -> void:
 	for a in game_map.animal_spawns:
 		Game.spawn_unit(a[0], Game.GAIA, game_map.cell_center(a[1]))
 	$Fog.setup()
+	Sound.set_in_game(true)
+	Sound.play_music("village")
+	Sound.play("fight")
 	camera.zoom = Vector2(DEFAULT_ZOOM, DEFAULT_ZOOM)
 	camera.center_on(game_map.start_center(Game.PLAYER) + Vector2(140, -20))
 

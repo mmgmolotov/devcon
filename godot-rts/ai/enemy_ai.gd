@@ -250,6 +250,7 @@ func _send_wave() -> void:
 	waves_sent += 1
 	wave_timer = WAVE_INTERVAL
 	Game.notify.emit("Enemy attack wave %d incoming!" % waves_sent)
+	Sound.play("prepare_yourself")
 
 
 func _closest(list: Array, pos: Vector2):

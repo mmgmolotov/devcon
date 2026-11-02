@@ -45,6 +45,7 @@ func confirm() -> bool:
 	var b := Game.place_building(Game.PLAYER, type, cell)
 	if b == null:
 		return false
+	Sound.play("build")
 	for u in Game.selected_own_units():
 		if u.is_villager:
 			u.command_build(b)

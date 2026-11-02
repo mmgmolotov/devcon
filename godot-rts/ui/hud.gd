@@ -97,6 +97,8 @@ func set_selection_box(r: Rect2) -> void:
 
 
 func show_toast(text: String) -> void:
+	if text.begins_with("Not enough") or text.begins_with("Need") or text.begins_with("Can't") or text.begins_with("No "):
+		Sound.play("error", null, -6.0)
 	_toast.text = text
 	_toast.visible = true
 	_toast.modulate.a = 1.0
@@ -353,7 +355,8 @@ func _build_credits() -> void:
 		+ "Eliza Wyatt (ElizaWy), Michael Whitlock (bigbeargames), Marcel van de Steeg (MadMarcel), "
 		+ "Evert, TheraHedwig, Durrani, Inboxninja and others.\n\n"
 		+ "Sheep and boar: 'LPC style farm animals' by daneeklu (CC-BY 3.0).\n"
-		+ "Deer: 'Deer' by Calciumtrice (CC-BY 3.0).\n\n"
+		+ "Deer: 'Deer' by Calciumtrice (CC-BY 3.0).\n"
+		+ "Music & sounds: Ninja Adventure pack by Pixel-boy & AAA, and Kenney audio packs (CC0).\n\n"
 		+ "Full list with sources and licences: CREDITS.md")
 	box.add_child(body)
 	var close := _text_button("Close", Vector2(160, 60), func(): _credits.visible = false)
@@ -375,6 +378,7 @@ func _text_button(text: String, min_size: Vector2, cb: Callable) -> Button:
 	b.text = text
 	b.custom_minimum_size = min_size
 	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(func(): Sound.play("click", null, -8.0))
 	b.pressed.connect(cb)
 	return b
 

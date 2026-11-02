@@ -358,6 +358,10 @@ func end_game(winning_team: int) -> void:
 		return
 	is_over = true
 	winner = winning_team
+	Sound.set_in_game(false)
+	Sound.play_music("")
+	Sound.play("victory" if winning_team == PLAYER else "defeat")
+	Sound.play("you_win" if winning_team == PLAYER else "you_lose", null, 2.0)
 	game_over.emit(winning_team)
 
 
@@ -498,6 +502,8 @@ static func rect_distance(rect: Rect2, p: Vector2) -> float:
 # --- Selection ---------------------------------------------------------------
 
 func set_selection(list: Array) -> void:
+	if not list.is_empty() and list[0] is Unit and list[0].team == PLAYER:
+		Sound.play("select", null, -8.0)
 	for e in selected:
 		if alive(e):
 			e.selected = false
