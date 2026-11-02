@@ -39,10 +39,10 @@ def var(d, v, anims=STD):
     return {a: f"{d}{a}/{v}.png" for a in anims}
 
 
-def layer(z, files, team=False, big=None, color=None):
-    """big: {anim: file} for 128 px oversized custom animations.
+def layer(z, files, team=False, big=None, color=None, big_cell=128):
+    """big: {anim: file} for oversized custom animations (big_cell px frames).
     team: recolour to the team colour. color: recolour to a fixed (r, g, b)."""
-    return {"z": z, "files": files, "team": team, "big": big or {}, "color": color}
+    return {"z": z, "files": files, "team": team, "big": big or {}, "color": color, "big_cell": big_cell}
 
 
 BODY = [
@@ -125,6 +125,26 @@ UNITS = {
             layer(130, std("hat/helmet/armet/adult/"))] + SHIELD + SWORD,
         "anims": [("walk", "walk", False), ("attack", "slash", True), ("hurt", "hurt", False)],
     },
+    "axeman": {
+        "layers": BODY + [SHOES, PANTS, SHIRT,
+                          layer(70, std("torso/armour/plate/male/", ["hurt"])),
+                          layer(130, std("hat/helmet/barbarian_viking/adult/")),
+                          layer(9, {"walk": "weapon/blunt/waraxe/behind/walk/waraxe.png"},
+                                big={"slash": "weapon/blunt/waraxe/attack_slash/behind/waraxe.png"}, big_cell=192),
+                          layer(140, {"walk": "weapon/blunt/waraxe/walk/waraxe.png",
+                                      "hurt": "weapon/blunt/waraxe/hurt/waraxe.png"},
+                                big={"slash": "weapon/blunt/waraxe/attack_slash/waraxe.png"}, big_cell=192)],
+        "anims": [("walk", "walk", False), ("attack", "slash", True), ("hurt", "hurt", False)],
+    },
+    "crossbowman": {
+        "layers": BODY + [SHOES, PANTS, SHIRT,
+                          layer(50, std("torso/chainmail/male/")),
+                          layer(55, var("torso/jacket/tabard/male/", "brown"), team=True),
+                          layer(130, std("hat/helmet/kettle/adult/")),
+                          layer(-1, var("weapon/ranged/crossbow/background/", "crossbow", ["walk", "thrust", "hurt"])),
+                          layer(140, var("weapon/ranged/crossbow/foreground/", "crossbow", ["walk", "thrust", "hurt"]))],
+        "anims": [("walk", "walk", False), ("attack", "thrust", False), ("hurt", "hurt", False)],
+    },
     "monk": {
         "layers": BODY + [SHOES, layer(20, std("legs/pants/male/"), color=(110, 80, 50)),
                           layer(35, std("torso/clothes/longsleeve/longsleeve/male/"), color=(125, 90, 55)),
@@ -171,7 +191,9 @@ def compose(unit, team_rgb, cache):
     for name, body_anim, big in spec["anims"]:
         frames = FRAMES[body_anim]
         rows = 1 if body_anim == "hurt" else 4
-        cell = 128 if big else 64
+        cell = 64
+        if big:
+            cell = max([128] + [l["big_cell"] for l in layers if name in l["big"] or body_anim in l["big"]])
         sheet = Image.new("RGBA", (frames * cell, rows * cell), (0, 0, 0, 0))
         for l in layers:
             rel = l["big"].get(name) or l["big"].get(body_anim) if big else None
@@ -188,7 +210,7 @@ def compose(unit, team_rgb, cache):
                 img = tint(img, team_rgb)
             elif l["color"]:
                 img = tint(img, l["color"])
-            src_cell = 128 if is_big else 64
+            src_cell = l["big_cell"] if is_big else 64
             for r in range(rows):
                 for f in range(frames):
                     box = (f * src_cell, r * src_cell, (f + 1) * src_cell, (r + 1) * src_cell)

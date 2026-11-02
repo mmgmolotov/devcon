@@ -16,7 +16,7 @@ const DEFENSE_RADIUS := 360.0
 ## Desired share of villagers per resource, before/after the barracks exists.
 const SPLIT_EARLY := {"food": 0.4, "wood": 0.35, "gold": 0.1, "stone": 0.15}
 const SPLIT_LATE := {"food": 0.35, "wood": 0.25, "gold": 0.32, "stone": 0.08}
-const ARMY_MIX: Array[String] = ["swordsman", "archer", "spearman", "swordsman", "archer", "knight"]
+const ARMY_MIX: Array[String] = ["swordsman", "archer", "spearman", "axeman", "crossbowman", "knight", "archer", "ram"]
 const MAX_FARMS := 6
 const CAMP_DISTANCE := 260.0
 
@@ -116,6 +116,10 @@ func _manage_construction(villagers: Array, tc: Building, barracks: Array) -> vo
 		_try_build("barracks", villagers, tc)
 	elif _needs_camp("gold", "mining_camp", tc) and villagers.size() >= 7:
 		_try_build_near("mining_camp", villagers, Game.find_nearest_resource("gold", tc.position))
+	elif _own_count("archery_range") == 0 and not barracks.is_empty() and villagers.size() >= 8:
+		_try_build("archery_range", villagers, tc)
+	elif _own_count("siege_workshop") == 0 and waves_sent >= 1 and villagers.size() >= 10:
+		_try_build("siege_workshop", villagers, tc)
 	elif barracks.size() < 2 and waves_sent >= 2 and villagers.size() >= 10:
 		_try_build("barracks", villagers, tc)
 
@@ -207,10 +211,23 @@ func _train(tc: Building, villagers: Array, barracks: Array) -> void:
 		tc.enqueue("villager")
 	if villagers.size() < 6:
 		return
-	for b in barracks:
-		if b.constructed and b.queue.is_empty():
-			if b.enqueue(ARMY_MIX[_mix_index % ARMY_MIX.size()]) == "":
-				_mix_index += 1
+	# Walk the army mix and queue each unit at whichever building trains it.
+	var military := Game.buildings.filter(func(b): return b.team == TEAM and not b.dead and b.constructed \
+		and b.type in ["barracks", "archery_range", "siege_workshop"])
+	for i in ARMY_MIX.size():
+		var want: String = ARMY_MIX[_mix_index % ARMY_MIX.size()]
+		var producer = null
+		for b in military:
+			if b.data.trains.has(want) and b.queue.is_empty():
+				producer = b
+				break
+		var can_make := military.any(func(b): return b.data.trains.has(want))
+		if not can_make:
+			_mix_index += 1  # skip units we have no building for yet
+			continue
+		if producer != null and producer.enqueue(want) == "":
+			_mix_index += 1
+		break
 
 
 func _defend(tc: Building, soldiers: Array) -> void:

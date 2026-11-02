@@ -23,7 +23,8 @@ const GLASS := Color(0.2, 0.25, 0.32)
 
 ## Height of each building's front wall (the part drawn above its footprint).
 const WALL_HEIGHT := {"house": 20.0, "barracks": 26.0, "town_center": 32.0, "farm": 0.0,
-	"mill": 22.0, "lumber_camp": 16.0, "mining_camp": 16.0, "watch_tower": 58.0, "monastery": 30.0}
+	"mill": 22.0, "lumber_camp": 16.0, "mining_camp": 16.0, "watch_tower": 58.0, "monastery": 30.0,
+	"archery_range": 22.0, "siege_workshop": 26.0}
 
 
 # --- Primitives ----------------------------------------------------------------------
@@ -239,6 +240,10 @@ static func draw_building(ci: CanvasItem, type: String, team: Color, size: Vecto
 			_draw_watch_tower(ci, r, h, team)
 		"monastery":
 			_draw_monastery(ci, r, h, team)
+		"archery_range":
+			_draw_archery_range(ci, r, h, team)
+		"siege_workshop":
+			_draw_siege_workshop(ci, r, h, team)
 
 
 static func chimney_offset(type: String, size: Vector2) -> Vector2:
@@ -674,3 +679,127 @@ static func draw_farm(ci: CanvasItem, size: Vector2, fullness: float) -> void:
 				ci.draw_line(Vector2(x, y + 1), Vector2(x, y + 1 - hgt), crop, 1.6)
 				ci.draw_circle(Vector2(x, y - hgt), 1.4, crop.lightened(0.2))
 				x += 5.0
+
+
+static func _draw_archery_range(ci: CanvasItem, r: Rect2, h: float, team: Color) -> void:
+	# Long hall at the back, training yard with straw targets in front.
+	var hall := Rect2(r.position.x, r.position.y, r.size.x, r.size.y * 0.5)
+	var wall := Rect2(hall.position.x + 2, hall.end.y - h - 2, hall.size.x - 4, h)
+	box(ci, wall, WOOD.lightened(0.15))
+	var x := wall.position.x + 7.0
+	while x < wall.end.x:
+		ci.draw_line(Vector2(x, wall.position.y), Vector2(x, wall.end.y), WOOD_DARK.lightened(0.15), 1.0)
+		x += 7.0
+	box(ci, Rect2(-8, wall.end.y - 14, 16, 14), WOOD_DARK, OUTLINE, 1.0)
+	_gable_roof(ci, hall, h, Color(0.3, 0.45, 0.25), 4.0, true)
+	ci.draw_line(Vector2(hall.position.x - 6, hall.end.y - h + 1), Vector2(hall.end.x + 6, hall.end.y - h + 1), team, 3.0)
+	var yard := Rect2(r.position.x, hall.end.y + 2, r.size.x, r.size.y * 0.5 - 2)
+	ci.draw_rect(yard, Color(0.55, 0.47, 0.32, 0.55))
+	ci.draw_rect(yard, WOOD_DARK, false, 2.0)
+	for i in 3:
+		var c := Vector2(yard.position.x + 16 + i * 30.0, yard.get_center().y - 2)
+		ci.draw_line(c + Vector2(-5, 12), c + Vector2(0, 0), WOOD_DARK, 2.0)
+		ci.draw_line(c + Vector2(5, 12), c + Vector2(0, 0), WOOD_DARK, 2.0)
+		ellipse(ci, c + Vector2(0, -2), 9.0, 9.0, THATCH.darkened(0.1))
+		ellipse(ci, c + Vector2(0, -2), 6.0, 6.0, Color(0.95, 0.95, 0.9))
+		ellipse(ci, c + Vector2(0, -2), 3.5, 3.5, team)
+		ci.draw_circle(c + Vector2(0, -2), 1.3, Color(0.9, 0.85, 0.2))
+	flag(ci, Vector2(r.end.x - 4, hall.position.y - h + 4), 14.0, team)
+
+
+static func _draw_siege_workshop(ci: CanvasItem, r: Rect2, h: float, team: Color) -> void:
+	# Open timber frame with a half-built machine, logs and a big wheel.
+	var back := Rect2(r.position.x + 2, r.position.y - h + 6, r.size.x - 4, r.size.y * 0.7)
+	ci.draw_rect(back, Color(0.28, 0.2, 0.13))
+	for px in [r.position.x + 3, r.get_center().x - 1.5, r.end.x - 6]:
+		ci.draw_rect(Rect2(px, r.position.y - h + 4, 4, r.size.y * 0.7 + h - 4), WOOD_DARK)
+	poly(ci, [Vector2(r.position.x - 5, r.position.y - h + 2), Vector2(r.end.x + 5, r.position.y - h + 2),
+		Vector2(r.end.x + 8, r.position.y - h + 20), Vector2(r.position.x - 8, r.position.y - h + 20)], ROOF_RED.darkened(0.15), OUTLINE, 1.5)
+	for i in 4:
+		var y := r.position.y - h + 6 + i * 4.0
+		ci.draw_line(Vector2(r.position.x - 5, y), Vector2(r.end.x + 5, y), ROOF_RED.darkened(0.35), 1.0)
+	ci.draw_line(Vector2(r.position.x - 8, r.position.y - h + 20), Vector2(r.end.x + 8, r.position.y - h + 20), team, 3.0)
+	# Big wheel leaning on the left, half-built arm on the right, log pile.
+	var wc := Vector2(r.position.x + 22, r.end.y - 22)
+	ci.draw_circle(wc, 15.0, OUTLINE)
+	ci.draw_circle(wc, 13.5, WOOD)
+	ci.draw_circle(wc, 9.0, WOOD_DARK)
+	for i in 6:
+		ci.draw_line(wc, wc + Vector2.from_angle(i * PI / 3.0) * 13.0, WOOD.lightened(0.2), 2.0)
+	ci.draw_circle(wc, 3.0, STEEL_DARK)
+	ci.draw_line(Vector2(r.end.x - 34, r.end.y - 8), Vector2(r.end.x - 10, r.end.y - 40), WOOD.lightened(0.1), 5.0)
+	box(ci, Rect2(r.end.x - 40, r.end.y - 14, 34, 8), WOOD, OUTLINE, 1.0)
+	for i in 3:
+		var c := Vector2(r.get_center().x - 2 + i * 7.0, r.end.y - 6)
+		ci.draw_circle(c, 3.6, OUTLINE)
+		ci.draw_circle(c, 2.9, WOOD.lightened(0.3))
+	flag(ci, Vector2(r.end.x - 3, r.position.y - h + 2), 14.0, team, 1.0)
+
+
+# --- Siege machines -----------------------------------------------------------------
+
+## Draws a siege machine with its wheels on the ground (y = 0 is the unit's
+## position). wheel: wheel rotation; work: 0..1 attack cycle or -1.
+static func draw_machine(ci: CanvasItem, kind: String, team: Color, facing: float, wheel: float, work: float) -> void:
+	var f := 1.0 if facing >= 0.0 else -1.0
+	shadow(ci, Vector2(0, 8), 24.0, 7.0, 0.3)
+	if kind == "ram":
+		_draw_ram(ci, team, f, wheel, work)
+	else:
+		_draw_catapult(ci, team, f, wheel, work)
+
+
+static func _wheel(ci: CanvasItem, c: Vector2, r: float, angle: float) -> void:
+	ci.draw_circle(c, r + 1.0, OUTLINE)
+	ci.draw_circle(c, r, WOOD)
+	for i in 3:
+		var d := Vector2.from_angle(angle + i * PI / 3.0) * r
+		ci.draw_line(c - d, c + d, WOOD_DARK, 1.5)
+	ci.draw_circle(c, 1.8, STEEL_DARK)
+
+
+static func _draw_ram(ci: CanvasItem, team: Color, f: float, wheel: float, work: float) -> void:
+	# Swinging log: pulled back while winding up, thrust out on the strike.
+	var swing := 0.0
+	if work >= 0.0:
+		swing = -6.0 * (work / 0.8) if work < 0.8 else -6.0 + 16.0 * ((work - 0.8) / 0.2)
+	var log_y := -10.0
+	ci.draw_line(Vector2(-22 * f + swing * f, log_y), Vector2(24 * f + swing * f, log_y), WOOD_DARK, 7.0)
+	ci.draw_line(Vector2(-22 * f + swing * f, log_y - 1), Vector2(24 * f + swing * f, log_y - 1), WOOD, 4.0)
+	poly(ci, [Vector2((24 + swing) * f, log_y - 6), Vector2((31 + swing) * f, log_y), Vector2((24 + swing) * f, log_y + 6)],
+		STEEL_DARK, OUTLINE, 1.0)
+	# Shed with hide-covered A-frame roof.
+	poly(ci, [Vector2(-22, -4), Vector2(22, -4), Vector2(18, 4), Vector2(-18, 4)], WOOD_DARK, OUTLINE, 1.2)
+	poly(ci, [Vector2(-24, -4), Vector2(24, -4), Vector2(12, -26), Vector2(-12, -26)], Color(0.55, 0.4, 0.25), OUTLINE, 1.5)
+	for i in 4:
+		var y := -8.0 - i * 5.0
+		var w := 22.0 - i * 3.0
+		ci.draw_line(Vector2(-w, y), Vector2(w, y), Color(0.42, 0.3, 0.18), 1.2)
+	ci.draw_line(Vector2(-12, -26), Vector2(12, -26), WOOD_DARK, 2.5)
+	ci.draw_line(Vector2(-23, -6), Vector2(23, -6), team, 3.0)
+	for x in [-15.0, -5.0, 5.0, 15.0]:
+		_wheel(ci, Vector2(x, 5), 5.0, wheel)
+
+
+static func _draw_catapult(ci: CanvasItem, team: Color, f: float, wheel: float, work: float) -> void:
+	# Base frame.
+	box(ci, Rect2(-20, -6, 40, 7), WOOD, OUTLINE, 1.2)
+	ci.draw_line(Vector2(-16, -6), Vector2(-4, -22), WOOD_DARK, 4.0)
+	ci.draw_line(Vector2(16, -6), Vector2(4, -22), WOOD_DARK, 4.0)
+	ci.draw_line(Vector2(-6, -22), Vector2(6, -22), WOOD_DARK, 4.0)
+	ci.draw_line(Vector2(-18, -2), Vector2(18, -2), team, 2.0)
+	# Throwing arm: cocked back while reloading, flung upright when it fires.
+	var cocked := 1.0
+	if work >= 0.0:
+		cocked = clampf(work / 0.85, 0.0, 1.0) if work < 0.85 else 1.0 - (work - 0.85) / 0.15
+	var pivot := Vector2(0, -12)
+	var a := lerpf(-1.75, -0.25, cocked) if f > 0.0 else lerpf(-1.39, -2.89, cocked)
+	var tip := pivot + Vector2.from_angle(a) * 26.0
+	ci.draw_line(pivot, tip, WOOD.lightened(0.1), 3.5)
+	ellipse(ci, tip, 4.5, 3.0, WOOD_DARK)
+	if cocked > 0.6:
+		ci.draw_circle(tip + Vector2(0, -2), 3.2, Color(0.55, 0.53, 0.5))
+	ci.draw_circle(pivot, 2.5, STEEL_DARK)
+	flag(ci, Vector2(-18 * f, -6), 18.0, team)
+	for x in [-14.0, 14.0]:
+		_wheel(ci, Vector2(x, 3), 6.0, wheel)

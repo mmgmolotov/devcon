@@ -123,6 +123,46 @@
    "rows": 1
   }
  },
+ "axeman": {
+  "walk": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 192,
+   "cell": 144,
+   "frames": 6,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 768,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
+ "crossbowman": {
+  "walk": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 192,
+   "cell": 48,
+   "frames": 8,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 384,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
  "monk": {
   "walk": {
    "y": 0,

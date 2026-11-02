@@ -57,6 +57,27 @@ const UNIT_DATA := {
 		"speed": 80.0, "sight": 190.0, "radius": 10.0, "time": 14.0,
 		"cost": {"wood": 30, "gold": 40}, "ranged": true, "building_mult": 0.3,
 	},
+	"axeman": {
+		"name": "Axeman", "hp": 80.0, "damage": 11.0, "range": 14.0, "cooldown": 1.3,
+		"speed": 74.0, "sight": 170.0, "radius": 11.0, "time": 14.0,
+		"cost": {"food": 50, "wood": 30}, "building_mult": 1.6,
+	},
+	"crossbowman": {
+		"name": "Crossbowman", "hp": 55.0, "damage": 10.0, "range": 170.0, "cooldown": 2.4,
+		"speed": 72.0, "sight": 200.0, "radius": 10.0, "time": 16.0,
+		"cost": {"wood": 35, "gold": 50}, "ranged": true, "building_mult": 0.4,
+	},
+	"ram": {
+		"name": "Battering Ram", "hp": 260.0, "damage": 40.0, "range": 14.0, "cooldown": 2.5,
+		"speed": 40.0, "sight": 170.0, "radius": 16.0, "time": 25.0,
+		"cost": {"wood": 160, "gold": 75}, "building_mult": 1.0, "machine": "ram", "buildings_only": true,
+	},
+	"catapult": {
+		"name": "Catapult", "hp": 120.0, "damage": 30.0, "range": 270.0, "cooldown": 4.5,
+		"speed": 36.0, "sight": 290.0, "radius": 15.0, "time": 30.0,
+		"cost": {"wood": 200, "gold": 150}, "ranged": true, "building_mult": 2.0, "machine": "catapult",
+		"splash": 45.0,
+	},
 	"knight": {
 		"name": "Knight", "hp": 160.0, "damage": 13.0, "range": 14.0, "cooldown": 1.5,
 		"speed": 64.0, "sight": 180.0, "radius": 12.0, "time": 20.0,
@@ -111,7 +132,15 @@ const BUILDING_DATA := {
 	},
 	"barracks": {
 		"name": "Barracks", "hp": 800.0, "size": Vector2i(3, 3), "cost": {"wood": 150, "stone": 50},
-		"build_time": 30.0, "pop": 0, "trains": ["swordsman", "spearman", "archer", "knight"], "dropoff": [],
+		"build_time": 30.0, "pop": 0, "trains": ["swordsman", "spearman", "axeman", "knight"], "dropoff": [],
+	},
+	"archery_range": {
+		"name": "Archery Range", "hp": 800.0, "size": Vector2i(3, 3), "cost": {"wood": 150},
+		"build_time": 30.0, "pop": 0, "trains": ["archer", "crossbowman"], "dropoff": [],
+	},
+	"siege_workshop": {
+		"name": "Siege Workshop", "hp": 900.0, "size": Vector2i(3, 3), "cost": {"wood": 200, "gold": 100},
+		"build_time": 40.0, "pop": 0, "trains": ["ram", "catapult"], "dropoff": [],
 	},
 	"watch_tower": {
 		"name": "Watch Tower", "hp": 700.0, "size": Vector2i(2, 2), "cost": {"wood": 50, "stone": 100},
@@ -126,7 +155,7 @@ const BUILDING_DATA := {
 ## Buildings a villager can construct, as HUD pages (economy, military).
 const BUILD_PAGES := [
 	["house", "farm", "mill", "lumber_camp", "mining_camp"],
-	["barracks", "watch_tower", "monastery"],
+	["barracks", "archery_range", "siege_workshop", "watch_tower", "monastery"],
 ]
 
 var players: Array = []
@@ -290,9 +319,9 @@ func place_building(team: int, type: String, cell: Vector2i) -> Building:
 	return spawn_building(type, team, cell, false)
 
 
-func spawn_projectile(attacker: Entity, target: Entity, damage: float) -> void:
+func spawn_projectile(attacker: Entity, target: Entity, damage: float, splash := 0.0) -> void:
 	var p: Node2D = _projectile_scene.instantiate()
-	p.setup(attacker, target, damage)
+	p.setup(attacker, target, damage, splash)
 	effects.add_child(p)
 
 
@@ -393,6 +422,31 @@ func find_nearest_enemy(team: int, pos: Vector2, max_dist: float, units_only := 
 				best_d = d
 				best = b
 	return best
+
+
+func find_nearest_enemy_building(team: int, pos: Vector2, max_dist: float) -> Building:
+	var best: Building = null
+	var best_d := max_dist
+	for b in buildings:
+		if b.team != team and not b.dead:
+			var d: float = b.distance_to_edge(pos)
+			if d < best_d:
+				best_d = d
+				best = b
+	return best
+
+
+## Damages every hostile entity within radius of pos (catapult stones).
+func splash_damage(team: int, pos: Vector2, radius: float, damage: float, attacker) -> void:
+	for e in units.duplicate() + buildings.duplicate():
+		if e.dead or e.team == team:
+			continue
+		var d: float = e.distance_to_edge(pos)
+		if d <= radius:
+			var mult: float = 1.0 - d / radius * 0.5
+			if e is Building:
+				mult *= 2.0
+			e.take_damage(damage * mult, attacker if alive(attacker) else null)
 
 
 func find_nearest_resource(type: String, pos: Vector2, max_dist := FAR) -> ResourceNode:

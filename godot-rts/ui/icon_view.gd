@@ -31,6 +31,12 @@ func _draw() -> void:
 	var c := size * 0.5
 	match kind:
 		"unit":
+			if Game.UNIT_DATA[type].has("machine"):
+				var mk := s / 64.0
+				draw_set_transform(c + Vector2(0, 14.0 * mk), 0.0, Vector2(mk, mk))
+				Art.draw_machine(self, Game.UNIT_DATA[type].machine, col, 1.0, 0.0, -1.0)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				return
 			var tex := Game.unit_texture(type, team)
 			var src := Rect2(0, 0, 64, 64)
 			if Game.UNIT_DATA[type].has("animal"):

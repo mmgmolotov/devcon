@@ -30,6 +30,8 @@ var ranged := false
 var is_villager := false
 var is_animal := false
 var is_monk := false
+var is_machine := false
+var buildings_only := false
 var animal_mode := ""
 
 var path := PackedVector2Array()
@@ -91,6 +93,8 @@ func setup(unit_type: String, unit_team: int) -> void:
 	ranged = data.get("ranged", false)
 	is_villager = type == "villager"
 	is_monk = data.has("heal")
+	is_machine = data.has("machine")
+	buildings_only = data.get("buildings_only", false)
 	animal_mode = data.get("animal", "")
 	is_animal = animal_mode != ""
 	scan_timer = randf() * SCAN_INTERVAL
@@ -105,6 +109,8 @@ func _ready() -> void:
 	_ground.unit = self
 	_ground.show_behind_parent = true
 	add_child(_ground)
+	if is_machine:
+		return
 	_sprite = Sprite2D.new()
 	_sprite.texture = Game.unit_texture(type, team)
 	_sprite.centered = false
@@ -177,7 +183,7 @@ func command_stop() -> void:
 func command_attack(e: Entity, aggressive := false) -> void:
 	if e == self or not Game.alive(e) or e.team == team:
 		return
-	if is_monk:
+	if is_monk or (buildings_only and not e is Building):
 		command_move(e.position)
 		return
 	_reset_orders()
@@ -267,7 +273,8 @@ func _process_idle(delta: float) -> void:
 		if hurt != null:
 			command_heal(hurt)
 		return
-	var e := Game.find_nearest_enemy(team, position, sight)
+	var e: Entity = Game.find_nearest_enemy_building(team, position, sight) if buildings_only \
+		else Game.find_nearest_enemy(team, position, sight)
 	if e != null:
 		command_attack(e)
 
@@ -341,7 +348,8 @@ func _process_attack(delta: float) -> void:
 				command_gather(meat)
 				return
 		if attack_move:
-			var nxt := Game.find_nearest_enemy(team, position, Game.FAR)
+			var nxt: Entity = Game.find_nearest_enemy_building(team, position, Game.FAR) if buildings_only \
+				else Game.find_nearest_enemy(team, position, Game.FAR)
 			if nxt != null:
 				target = nxt
 				_clear_path()
@@ -355,7 +363,7 @@ func _process_attack(delta: float) -> void:
 		command_move(home)
 		return
 	# Soldiers hitting buildings switch to enemy units that come close.
-	if not is_villager and not is_animal and target is Building:
+	if not is_villager and not is_animal and not buildings_only and target is Building:
 		scan_timer -= delta
 		if scan_timer <= 0.0:
 			scan_timer = SCAN_INTERVAL
@@ -378,11 +386,17 @@ func _strike(t: Entity) -> void:
 		dmg *= data.get("building_mult", 1.0)
 	elif t is Unit:
 		dmg *= data.get("bonus", {}).get(t.type, 1.0)
+		if ranged and t.is_machine:
+			dmg *= 0.25  # siege machines shrug off arrows
 	if team == Game.PLAYER or t.team == Game.PLAYER:
 		Sound.notify_combat()
 	if ranged:
-		Game.spawn_projectile(self, t, dmg)
-		Sound.play("arrow", position, -5.0)
+		Game.spawn_projectile(self, t, dmg, data.get("splash", 0.0))
+		Sound.play("launch" if is_machine else "arrow", position, -5.0)
+	elif is_machine:
+		Game.emit_fx("debris", t.nearest_point_to(position), 5)
+		Sound.play("ram", position)
+		t.take_damage(dmg, self)
 	else:
 		Sound.play("sword" if t is Unit and not t.is_animal else "hit", position, -3.0)
 		Game.emit_fx("clang" if t is Unit else "dust", t.nearest_point_to(position) + Vector2(0, -10), 4)
@@ -543,7 +557,10 @@ func _on_damaged(attacker) -> void:
 func die() -> void:
 	if dead:
 		return
-	if is_animal:
+	if is_machine:
+		Game.emit_fx("debris", position, 12)
+		Sound.play("collapse", position, -4.0)
+	elif is_animal:
 		var r := Game.map.add_resource_node("carcass", Game.map.world_to_cell(position), Vector2i.ONE)
 		r.position = position
 		r.amount = int(data.food)
@@ -586,6 +603,17 @@ func _animate(delta: float) -> void:
 	var moved := position.distance_squared_to(_last_pos) > 0.04
 	if not moved and state != State.MOVE and path_index >= path.size():
 		move_dir = Vector2.ZERO
+	if is_machine:
+		if moved:
+			_set_dir(position - _last_pos)
+			_work_time += delta
+		_last_pos = position
+		if moved or _working:
+			_anim_t += delta * ANIM_FPS
+			if _anim_t >= 1.0:
+				_anim_t -= 1.0
+				queue_redraw()
+		return
 	if moved:
 		_set_dir(position - _last_pos)
 	_last_pos = position
@@ -661,7 +689,7 @@ func _update_region() -> void:
 	_sprite.region_rect = Rect2(frame * c, float(info.y) + row * c, c, c)
 	_sprite.flip_h = type == "deer" and _dir == DIR_LEFT
 	# Feet sit ~94% down a 64 px LPC frame; oversized frames are centred.
-	var feet := c * 0.94 if c <= 64.0 else c * 0.5 + c * 0.22
+	var feet := (c - 48.0) * 0.5 + 45.0
 	if is_animal:
 		feet = c * 0.78 if type != "deer" else c * 0.9
 	_sprite.offset = Vector2(-c * 0.5, 7.0 - feet)
@@ -672,6 +700,12 @@ func _update_region() -> void:
 func _draw() -> void:
 	if _ground != null:
 		_ground.queue_redraw()
+	if is_machine:
+		var phase := clampf(1.0 - attack_timer / cooldown, 0.0, 1.0) if _working else -1.0
+		Art.draw_machine(self, data.machine, Game.TEAM_COLORS[team], facing, _work_time * 6.0, phase)
+		if selected or hp < max_hp:
+			draw_health_bar(30.0, -40.0)
+		return
 	if carry_amount > 0:
 		var c: Color = Game.RESOURCE_COLORS.get(carry_type, Color.WHITE)
 		var p := Vector2(-9.0 * facing, -20.0)

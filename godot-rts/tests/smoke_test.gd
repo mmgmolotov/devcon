@@ -16,6 +16,8 @@ var _house: Building
 var _start_usec := 0
 var _wave_reached_base := false
 var _patient: Unit
+var _ram_bad_target := false
+var _ram_seen := false
 var _sheep_start := 0
 
 
@@ -92,6 +94,14 @@ func _physics_process(_delta: float) -> void:
 	if not _wave_reached_base and _frame % 30 == 0 and Game.get_town_center(0) != null:
 		var ptc := Game.get_town_center(0)
 		_wave_reached_base = Game.units.any(func(u): return u.team == 1 and u.attack_move and ptc.distance_to_edge(u.position) < 400.0)
+	if _frame % 30 == 0:
+		for u in Game.units:
+			if u.type == "ram" and Game.alive(u.target):
+				_ram_seen = true
+				if not u.target is Building:
+					if not _ram_bad_target:
+						print("  ram targeting ", u.target.get_display_name(), " state=", Unit.State.keys()[u.state])
+					_ram_bad_target = true
 	match _phase:
 		0:
 			if t >= 40.0:
@@ -130,6 +140,7 @@ func _physics_process(_delta: float) -> void:
 		2:
 			if Game.is_over:
 				_check(Game.winner == Game.PLAYER, "destroying enemy Town Center wins the game")
+				_check(not _ram_bad_target, "battering rams only target buildings (seen=%s bad=%s)" % [_ram_seen, _ram_bad_target])
 				print("  game over at t=%.0fs" % t)
 				_finish()
 			elif t >= TIMEOUT:
@@ -144,7 +155,9 @@ func _launch_player_assault() -> void:
 	for i in 14:
 		army.append(Game.spawn_unit("knight", 0, spawn + Vector2(i % 5, i / 5) * 26.0))
 	for i in 8:
-		army.append(Game.spawn_unit("archer", 0, spawn + Vector2(i % 4, 3 + i / 4) * 26.0))
+		army.append(Game.spawn_unit(["archer", "crossbowman"][i % 2], 0, spawn + Vector2(i % 4, 3 + i / 4) * 26.0))
+	for i in 4:
+		army.append(Game.spawn_unit(["axeman", "ram", "catapult", "ram"][i], 0, spawn + Vector2(i * 34, 140)))
 	for u in army:
 		u.command_attack(etc)
 
@@ -184,7 +197,10 @@ func _finish() -> void:
 		_frame, _frame / FPS, ms, ms / maxf(1.0, _frame)])
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED (%d checks)" % _passed.size())
-		get_tree().quit(0)
 	else:
 		print("SMOKE TEST FAILED: ", _failures)
-		get_tree().quit(1)
+	_main.queue_free()
+	Sound.stop_all()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_tree().quit(0 if _failures.is_empty() else 1)

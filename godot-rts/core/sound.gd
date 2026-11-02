@@ -56,6 +56,9 @@ var _music_idx := 0
 var _music_name := ""
 var _combat_t := 0.0
 var _in_game := false
+## Own RNG so audio (which depends on wall-clock rate limits) never shifts the
+## game simulation's random sequence.
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -71,6 +74,19 @@ func _ready() -> void:
 		m.finished.connect(m.play)  # loop
 		_music.append(m)
 	load_settings()
+
+
+## Stops everything and releases streams (call before quitting).
+func stop_all() -> void:
+	for p in _pool + _music:
+		p.stop()
+		p.stream = null
+	_music_name = ""
+	_streams.clear()
+
+
+func _exit_tree() -> void:
+	stop_all()
 
 
 func _stream(path: String) -> AudioStream:
@@ -97,9 +113,9 @@ func play(sound: String, world_pos = null, volume_db := 0.0) -> void:
 	var p := _pool[_next]
 	_next = (_next + 1) % _pool.size()
 	var variants: Array = SFX[sound]
-	p.stream = _stream(variants[randi() % variants.size()])
+	p.stream = _stream(variants[_rng.randi() % variants.size()])
 	p.volume_db = vol + linear_to_db(sfx_volume)
-	p.pitch_scale = randf_range(0.93, 1.07) if world_pos != null else 1.0
+	p.pitch_scale = _rng.randf_range(0.93, 1.07) if world_pos != null else 1.0
 	p.play()
 
 

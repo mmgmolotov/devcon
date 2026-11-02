@@ -49,6 +49,7 @@ func _ready() -> void:
 	if _showcase:
 		var base := Game.map.start_cells[0]
 		for spec in [["mill", Vector2i(-3, -3)], ["farm", Vector2i(-6, -1)], ["lumber_camp", Vector2i(4, -6)],
+				["archery_range", Vector2i(12, 1)], ["siege_workshop", Vector2i(13, -4)],
 				["watch_tower", Vector2i(8, -2)], ["monastery", Vector2i(0, -9)], ["barracks", Vector2i(4, -10)],
 				["mining_camp", Vector2i(10, -6)]]:
 			var bc: Vector2i = base + spec[1]
@@ -61,6 +62,9 @@ func _ready() -> void:
 		for i in 3:
 			Game.spawn_unit("knight", Game.PLAYER, sp + Vector2(i * 30, 0))
 			Game.spawn_unit("spearman", Game.PLAYER, sp + Vector2(i * 30, 30))
+			Game.spawn_unit(["axeman", "crossbowman", "axeman"][i], Game.PLAYER, sp + Vector2(i * 30, 60))
+		Game.spawn_unit("ram", Game.PLAYER, sp + Vector2(150, 50))
+		Game.spawn_unit("catapult", Game.PLAYER, sp + Vector2(150, 100))
 		Game.spawn_unit("monk", Game.PLAYER, sp + Vector2(100, 15))
 		Game.spawn_unit("archer", Game.PLAYER, sp + Vector2(-30, 15))
 	if _zoom > 0.0:

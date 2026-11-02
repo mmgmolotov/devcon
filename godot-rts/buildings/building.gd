@@ -200,6 +200,7 @@ func _physics_process(delta: float) -> void:
 			if e != null:
 				attack_timer = atk.cooldown
 				Game.spawn_projectile(self, e, atk.damage)
+				Sound.play("arrow", position, -8.0)
 			else:
 				attack_timer = 0.5
 
