@@ -31,11 +31,22 @@ func _draw() -> void:
 	var c := size * 0.5
 	match kind:
 		"unit":
-			var k := s / 32.0
-			draw_set_transform(c + Vector2(0, 12.0 * k), 0.0, Vector2(k, k))
-			Art.shadow(self, Vector2.ZERO, 9.0, 3.5)
-			var tool: String = {"villager": "axe", "swordsman": "sword", "archer": "bow"}.get(type, "")
-			Art.draw_person(self, type, col, 1.0, 0.0, -1.0, tool, "")
+			var tex := Game.unit_texture(type, team)
+			var src := Rect2(0, 0, 64, 64)
+			if Game.UNIT_DATA[type].has("animal"):
+				src = {"sheep": Rect2(0, 128, 64, 64), "boar": Rect2(0, 128, 64, 64), "deer": Rect2(0, 0, 48, 48)}[type]
+			else:
+				var meta := Game.sprite_meta(type)
+				var walk: Dictionary = meta.get("walk", meta.get("walk_axe", {}))
+				var cell: float = walk.get("cell", 48)
+				src = Rect2(0, float(walk.get("y", 0)) + 2.0 * cell, cell, cell)
+				# Crop oversized frames to the character in the middle.
+				if cell > 64.0:
+					src = src.grow(-cell * 0.25)
+			var k := s / src.size.y * 1.15
+			var dst := Rect2(c - src.size * k * 0.5 + Vector2(0, s * 0.02), src.size * k)
+			Art.shadow(self, c + Vector2(0, s * 0.4), s * 0.25, s * 0.08)
+			draw_texture_rect_region(tex, dst, src)
 		"building":
 			var fs := Vector2(Game.BUILDING_DATA[type].size) * Game.TILE
 			var up: float = Art.WALL_HEIGHT.get(type, 22.0) + 22.0

@@ -7,6 +7,9 @@ var team_color := Color.WHITE
 var unit_type := "villager"
 var facing := 1.0
 var size := Vector2(64, 64)
+var texture: Texture2D
+var region := Rect2()
+var offset := Vector2.ZERO
 var _age := 0.0
 
 
@@ -30,6 +33,10 @@ func _draw() -> void:
 			draw_set_transform(Vector2(-10.0 * facing, 2), facing * PI * 0.5, Vector2.ONE)
 			Art.draw_person(self, unit_type, team_color.darkened(0.35), facing, 0.0, -1.0, "", "")
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		"sprite":
+			if texture != null:
+				Art.shadow(self, Vector2(0, 5), 12.0, 4.0, 0.2)
+				draw_texture_rect_region(texture, Rect2(offset, region.size), region, Color(0.85, 0.8, 0.8))
 		"rubble":
 			Art.draw_rubble(self, size, get_instance_id())
 		"stump":

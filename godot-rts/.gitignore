@@ -6,3 +6,7 @@ build/
 *.aab
 *.keystore
 export_credentials.cfg
+# Sprite build caches
+tools/.lpc_cache/
+tools/.animal_cache/
+__pycache__/

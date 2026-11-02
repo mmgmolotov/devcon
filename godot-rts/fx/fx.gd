@@ -41,6 +41,9 @@ func emit(kind: String, pos: Vector2, count := 4) -> void:
 			"clang":
 				_add(pos, Vector2(randf_range(-70, 70), randf_range(-70, 20)), 0.22, 1.6, 0.5,
 					Color(1, 1, 0.9), Color(1, 0.8, 0.4, 0.0), 0.0)
+			"heal":
+				_add(pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)), Vector2(randf_range(-6, 6), randf_range(-30, -18)),
+					0.8, 2.4, 0.8, Color(0.6, 1.0, 0.6, 0.95), Color(1.0, 1.0, 0.7, 0.0), 0.0)
 			"debris":
 				_add(pos + Vector2(randf_range(-30, 30), randf_range(-20, 20)), Vector2(randf_range(-40, 40), randf_range(-90, -30)),
 					0.9, 3.0, 1.5, Color(0.5, 0.45, 0.4), Color(0.35, 0.3, 0.25, 0.0), 200.0)

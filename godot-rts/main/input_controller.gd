@@ -174,6 +174,13 @@ func handle_tap(screen_pos: Vector2) -> void:
 	var own := Game.selected_own_units()
 	var now := Time.get_ticks_msec() / 1000.0
 
+	if hit is Unit and hit.team == Game.PLAYER and hit.hp < hit.max_hp and own.any(func(u): return u.is_monk) \
+			and not hit.selected:
+		for u in own:
+			if u.is_monk:
+				u.command_heal(hit)
+		Game.spawn_marker(hit.position, Color(0.5, 1.0, 0.5))
+		return
 	if hit is Unit and hit.team == Game.PLAYER:
 		if now - _last_tap_time < DOUBLE_TAP_TIME and _last_tap_entity == hit:
 			_select_type_on_screen(hit.type)
@@ -229,7 +236,7 @@ func _villagers_work_on(own: Array, b: Building) -> bool:
 		if not b.constructed:
 			u.command_build(b)
 			used = true
-		elif b.data.dropoff and u.carry_amount > 0:
+		elif b.data.dropoff.has(u.carry_type) and u.carry_amount > 0:
 			u.command_return()
 			used = true
 	return used

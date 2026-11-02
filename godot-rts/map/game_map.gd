@@ -15,6 +15,8 @@ var start_cells: Array[Vector2i] = [Vector2i(8, 52), Vector2i(53, 9)]
 var astar := AStarGrid2D.new()
 var occupancy := {}  # Vector2i -> Building or ResourceNode
 var water := {}      # Vector2i -> true for impassable pond tiles
+## [unit type, cell] pairs for animals, filled during generation (both halves).
+var animal_spawns: Array = []
 var ground_image: Image
 var rng := RandomNumberGenerator.new()
 
@@ -23,6 +25,7 @@ func generate(seed_value: int) -> void:
 	rng.seed = seed_value
 	occupancy.clear()
 	water.clear()
+	animal_spawns.clear()
 	astar.region = Rect2i(0, 0, N, N)
 	astar.cell_size = Vector2(T, T)
 	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
@@ -86,13 +89,13 @@ func is_area_free(cell: Vector2i, size: Vector2i, margin := 0) -> bool:
 	return true
 
 
-func occupy(cell: Vector2i, size: Vector2i, node: Node2D) -> void:
+func occupy(cell: Vector2i, size: Vector2i, node: Node2D, solid := true) -> void:
 	for y in range(cell.y, cell.y + size.y):
 		for x in range(cell.x, cell.x + size.x):
 			var c := Vector2i(x, y)
 			if in_bounds(c):
 				occupancy[c] = node
-				astar.set_point_solid(c, true)
+				astar.set_point_solid(c, solid)
 
 
 func free_area(cell: Vector2i, size: Vector2i) -> void:
@@ -262,6 +265,8 @@ func _place_resources() -> void:
 		plan[c] = "gold"
 	for c in [Vector2i(12, 59), Vector2i(13, 59), Vector2i(13, 60)]:
 		plan[c] = "stone"
+	for c in [Vector2i(3, 55), Vector2i(4, 55), Vector2i(3, 56), Vector2i(4, 57), Vector2i(3, 58), Vector2i(5, 58)]:
+		plan[c] = "berries"
 
 	var pc := start_center(0) / T
 	var ec := start_center(1) / T
@@ -294,6 +299,33 @@ func _place_resources() -> void:
 		var m := _mirror(c)
 		if not plan.has(m):
 			_add_resource(m, plan[c])
+	_plan_animals(pc, ec)
+
+
+## Sheep near each base, deer herds and boars in the wild (mirrored).
+func _plan_animals(pc: Vector2, ec: Vector2) -> void:
+	var spots: Array = []
+	for c in [Vector2i(13, 54), Vector2i(14, 55), Vector2i(13, 56), Vector2i(14, 53)]:
+		spots.append(["sheep", c])
+	var herds := 0
+	var tries := 0
+	while herds < 3 and tries < 300:
+		tries += 1
+		var c := Vector2i(rng.randi_range(4, N - 5), rng.randi_range(4, N - 5))
+		var p := Vector2(c) + Vector2(0.5, 0.5)
+		if p.distance_to(pc) < 12.0 or p.distance_to(ec) < 12.0 or p.distance_to(Vector2(_mirror(c))) < 8.0:
+			continue
+		if c.y * N + c.x >= (N - 1 - c.y) * N + (N - 1 - c.x):
+			continue
+		for i in 3:
+			spots.append(["deer", c + Vector2i(i % 2, i / 2)])
+		herds += 1
+	spots.append(["boar", Vector2i(18, 41)])
+	spots.append(["boar", Vector2i(24, 50)])
+	for s in spots:
+		for c in [s[1], _mirror(s[1])]:
+			var w := nearest_walkable(c)
+			animal_spawns.append([s[0], w])
 
 
 func _scatter_clusters(plan: Dictionary, type: String, count: int, size: int, pc: Vector2, ec: Vector2) -> void:
@@ -330,7 +362,15 @@ func _dist_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
 func _add_resource(c: Vector2i, type: String) -> void:
 	if not in_bounds(c) or occupancy.has(c) or water.has(c):
 		return
+	var kind: String = {"wood": "tree", "gold": "gold", "stone": "stone", "berries": "berries"}[type]
+	add_resource_node(kind, c, Vector2i.ONE)
+
+
+## Creates a resource node (also used for farms and carcasses at runtime).
+func add_resource_node(kind: String, c: Vector2i, size: Vector2i) -> ResourceNode:
 	var r: ResourceNode = RESOURCE_SCENE.instantiate()
-	r.setup(type, c, rng)
-	occupy(c, Vector2i.ONE, r)
+	r.setup(kind, c, rng, size)
+	if r.occupies:
+		occupy(c, size, r, r.blocking)
 	Game.entities.add_child(r)
+	return r

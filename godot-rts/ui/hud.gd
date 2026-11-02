@@ -5,7 +5,7 @@ extends CanvasLayer
 ## Built in code so the layout adapts to any landscape aspect ratio.
 
 const FONT_SIZE := 22
-const ACTION_SIZE := Vector2(116, 112)
+const ACTION_SIZE := Vector2(100, 112)
 const TOP_H := 58.0
 const BOTTOM_H := 136.0
 const MINIMAP_SIZE := 176.0
@@ -36,8 +36,10 @@ var _overlay: ColorRect
 var _overlay_label: Label
 var _box: Control
 var _box_rect := Rect2()
+var _credits: PanelContainer
 var _refresh_t := 0.0
 var _portrait_key := ""
+var _build_page := 0
 
 
 func _ready() -> void:
@@ -55,6 +57,7 @@ func _ready() -> void:
 	_build_placement_bar()
 	_build_toast()
 	_build_game_over()
+	_build_credits()
 	Game.selection_changed.connect(_rebuild_actions)
 	Game.resources_changed.connect(_refresh)
 	Game.notify.connect(show_toast)
@@ -82,7 +85,7 @@ func _process(delta: float) -> void:
 func is_point_over_ui(p: Vector2) -> bool:
 	if _overlay.visible:
 		return true
-	for c in [_top_bar, _bottom, _minimap, _placement]:
+	for c in [_top_bar, _bottom, _minimap, _placement, _credits]:
 		if c.visible and c.get_global_rect().has_point(p):
 			return true
 	return false
@@ -187,7 +190,7 @@ func _build_top_bar() -> void:
 	for r in Game.RESOURCE_TYPES:
 		row.add_child(_icon("resource", r, Vector2(34, 34)))
 		var l := Label.new()
-		l.custom_minimum_size.x = 72
+		l.custom_minimum_size.x = 58
 		row.add_child(l)
 		_res_labels[r] = l
 	row.add_child(_icon("resource", "pop", Vector2(34, 34)))
@@ -203,6 +206,7 @@ func _build_top_bar() -> void:
 	row.add_child(spacer)
 	row.add_child(_icon_button("unit", "villager", "Idle", Vector2(118, 46), _select_idle_villager, true))
 	row.add_child(_icon_button("unit", "swordsman", "Army", Vector2(118, 46), _select_army, true))
+	row.add_child(_text_button("i", Vector2(46, 46), func(): _credits.visible = not _credits.visible))
 
 
 func _build_minimap() -> void:
@@ -238,7 +242,7 @@ func _build_bottom_panel() -> void:
 	frame.add_child(_portrait_count)
 
 	var info := VBoxContainer.new()
-	info.custom_minimum_size.x = 300
+	info.custom_minimum_size.x = 220
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	info.add_theme_constant_override("separation", 6)
 	row.add_child(info)
@@ -247,14 +251,14 @@ func _build_bottom_panel() -> void:
 	_title_label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.5))
 	info.add_child(_title_label)
 	_hp_bar = ProgressBar.new()
-	_hp_bar.custom_minimum_size = Vector2(260, 14)
+	_hp_bar.custom_minimum_size = Vector2(200, 14)
 	_hp_bar.show_percentage = false
 	_hp_bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	info.add_child(_hp_bar)
 	_status_label = Label.new()
 	_status_label.add_theme_font_size_override("font_size", 18)
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status_label.custom_minimum_size.x = 300
+	_status_label.custom_minimum_size.x = 220
 	info.add_child(_status_label)
 
 	_actions = HBoxContainer.new()
@@ -321,6 +325,40 @@ func _build_game_over() -> void:
 	var again := _text_button("Play Again", Vector2(260, 84), func(): get_tree().reload_current_scene())
 	again.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(again)
+
+
+func _build_credits() -> void:
+	_credits = PanelContainer.new()
+	_credits.set_anchors_preset(Control.PRESET_CENTER)
+	_credits.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_credits.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_credits.visible = false
+	_root.add_child(_credits)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	_credits.add_child(box)
+	var t := Label.new()
+	t.text = "Tiny Realms - Credits"
+	t.add_theme_font_size_override("font_size", 28)
+	t.add_theme_color_override("font_color", Color(1.0, 0.86, 0.5))
+	box.add_child(t)
+	var body := Label.new()
+	body.add_theme_font_size_override("font_size", 17)
+	body.custom_minimum_size.x = 640
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.text = ("Game code, buildings, terrain and effects: original to Tiny Realms.\n\n"
+		+ "Unit sprites: Liberated Pixel Cup contributors (CC-BY-SA 3.0 / OGA-BY 3.0), including "
+		+ "bluecarrot16, JaidynReiman, Johannes Sjolund (wulax), Stephen Challener (Redshrike), "
+		+ "Matthew Krohn (makrohn), Pierre Vigier (pvigier), Benjamin K. Smith (BenCreating), "
+		+ "Eliza Wyatt (ElizaWy), Michael Whitlock (bigbeargames), Marcel van de Steeg (MadMarcel), "
+		+ "Evert, TheraHedwig, Durrani, Inboxninja and others.\n\n"
+		+ "Sheep and boar: 'LPC style farm animals' by daneeklu (CC-BY 3.0).\n"
+		+ "Deer: 'Deer' by Calciumtrice (CC-BY 3.0).\n\n"
+		+ "Full list with sources and licences: CREDITS.md")
+	box.add_child(body)
+	var close := _text_button("Close", Vector2(160, 60), func(): _credits.visible = false)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(close)
 
 
 # --- Widgets -----------------------------------------------------------------------------------
@@ -411,13 +449,20 @@ func _refresh_info() -> void:
 		_portrait_count.text = ""
 		return
 	var e = sel[0]
+	if e is ResourceNode:
+		_set_portrait("", "", 0)
+		_title_label.text = e.get_display_name()
+		_hp_bar.visible = false
+		_status_label.text = e.get_status_text()
+		_portrait_count.text = ""
+		return
 	if e is Unit:
 		_set_portrait("unit", e.type, e.team)
 	elif e is Building:
 		_set_portrait("building", e.type, e.team)
 	_hp_bar.visible = true
 	if sel.size() == 1:
-		var owner := "" if e.team == Game.PLAYER else "  (enemy)"
+		var owner := "" if e.team == Game.PLAYER else ("" if e.team == Game.GAIA else "  (enemy)")
 		_title_label.text = "%s%s" % [e.get_display_name(), owner]
 		_hp_bar.max_value = e.max_hp
 		_hp_bar.value = e.hp
@@ -458,12 +503,15 @@ func _rebuild_actions() -> void:
 	var bld := Game.selected_own_building()
 	if not own.is_empty():
 		if own.any(func(u): return u.is_villager):
-			for t in Game.BUILDABLE:
+			for t in Game.BUILD_PAGES[_build_page]:
 				var d: Dictionary = Game.BUILDING_DATA[t]
 				var b := _icon_button("building", t, Game.cost_text(d.cost), ACTION_SIZE, _start_placement.bind(t))
 				b.set_meta("cost", d.cost)
 				_actions.add_child(b)
-		_actions.add_child(_text_button("Stop", ACTION_SIZE, _stop_selected))
+			var more := _text_button("Military" if _build_page == 0 else "Economy", Vector2(ACTION_SIZE.x, ACTION_SIZE.y), _flip_build_page)
+			more.add_theme_font_size_override("font_size", 17)
+			_actions.add_child(more)
+		_actions.add_child(_text_button("Stop", Vector2(84, ACTION_SIZE.y), _stop_selected))
 	elif bld != null and bld.constructed:
 		for t in bld.data.trains:
 			var d: Dictionary = Game.UNIT_DATA[t]
@@ -481,6 +529,11 @@ func _rebuild_actions() -> void:
 		_actions.add_child(spacer)
 		_actions.add_child(_text_button("X", Vector2(88, ACTION_SIZE.y), Game.clear_selection))
 	_refresh()
+
+
+func _flip_build_page() -> void:
+	_build_page = 1 - _build_page
+	_rebuild_actions()
 
 
 func _start_placement(type: String) -> void:
@@ -517,7 +570,7 @@ func _select_idle_villager() -> void:
 
 
 func _select_army() -> void:
-	var army := Game.units.filter(func(u): return u.team == Game.PLAYER and not u.is_villager)
+	var army := Game.units.filter(func(u): return u.team == Game.PLAYER and not u.is_villager and not u.is_monk)
 	if army.is_empty():
 		show_toast("No soldiers yet - build a Barracks")
 		return

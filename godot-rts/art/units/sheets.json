@@ -1,0 +1,146 @@
+{
+ "villager": {
+  "walk_axe": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "work_axe": {
+   "y": 192,
+   "cell": 96,
+   "frames": 6,
+   "rows": 4
+  },
+  "walk_pickaxe": {
+   "y": 576,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "work_pickaxe": {
+   "y": 768,
+   "cell": 96,
+   "frames": 6,
+   "rows": 4
+  },
+  "walk_hammer": {
+   "y": 1152,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "work_hammer": {
+   "y": 1344,
+   "cell": 96,
+   "frames": 6,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 1728,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
+ "swordsman": {
+  "walk": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 192,
+   "cell": 96,
+   "frames": 6,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 576,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
+ "spearman": {
+  "walk": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 192,
+   "cell": 48,
+   "frames": 8,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 384,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
+ "archer": {
+  "walk": {
+   "y": 0,
+   "cell": 96,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 384,
+   "cell": 48,
+   "frames": 13,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 576,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
+ "knight": {
+  "walk": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 192,
+   "cell": 96,
+   "frames": 6,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 576,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ },
+ "monk": {
+  "walk": {
+   "y": 0,
+   "cell": 48,
+   "frames": 9,
+   "rows": 4
+  },
+  "attack": {
+   "y": 192,
+   "cell": 48,
+   "frames": 7,
+   "rows": 4
+  },
+  "hurt": {
+   "y": 384,
+   "cell": 48,
+   "frames": 6,
+   "rows": 1
+  }
+ }
+}

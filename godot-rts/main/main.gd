@@ -28,6 +28,8 @@ func _ready() -> void:
 	game_map.generate(MAP_SEED)
 	for team in 2:
 		_spawn_base(team)
+	for a in game_map.animal_spawns:
+		Game.spawn_unit(a[0], Game.GAIA, game_map.cell_center(a[1]))
 	$Fog.setup()
 	camera.zoom = Vector2(DEFAULT_ZOOM, DEFAULT_ZOOM)
 	camera.center_on(game_map.start_center(Game.PLAYER) + Vector2(140, -20))

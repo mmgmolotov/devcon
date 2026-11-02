@@ -20,53 +20,114 @@ const MAX_POP := 60
 const CARRY_CAPACITY := 10
 const FAR := 1.0e9
 
-const TEAM_COLORS: Array[Color] = [Color(0.22, 0.52, 0.95), Color(0.9, 0.25, 0.22)]
-const TEAM_NAMES: Array[String] = ["Blue", "Red"]
-const RESOURCE_TYPES: Array[String] = ["wood", "gold", "stone"]
+const GAIA := 2  ## Neutral team for wild and farm animals.
+
+const TEAM_COLORS: Array[Color] = [Color(0.22, 0.52, 0.95), Color(0.9, 0.25, 0.22), Color(0.75, 0.7, 0.55)]
+const TEAM_NAMES: Array[String] = ["Blue", "Red", "Nature"]
+const SPRITE_TEAMS: Array[String] = ["blue", "red", "blue"]
+const RESOURCE_TYPES: Array[String] = ["food", "wood", "gold", "stone"]
 const RESOURCE_COLORS := {
+	"food": Color(0.86, 0.3, 0.26),
 	"wood": Color(0.55, 0.36, 0.17),
 	"gold": Color(1.0, 0.82, 0.2),
 	"stone": Color(0.66, 0.66, 0.7),
 }
-## Resource units gathered per second by one villager.
-const GATHER_RATES := {"wood": 0.9, "gold": 0.75, "stone": 0.65}
-const RESOURCE_AMOUNTS := {"wood": 100, "gold": 400, "stone": 300}
+## Resource units gathered per second by one villager (before node multipliers).
+const GATHER_RATES := {"food": 0.85, "wood": 0.9, "gold": 0.75, "stone": 0.65}
+const START_RESOURCES := {"food": 200, "wood": 200, "gold": 100, "stone": 0}
 
 const UNIT_DATA := {
 	"villager": {
 		"name": "Villager", "hp": 40.0, "damage": 3.0, "range": 14.0, "cooldown": 1.5,
-		"speed": 72.0, "sight": 120.0, "radius": 9.0, "time": 10.0,
-		"cost": {"wood": 50}, "building_mult": 1.0,
+		"speed": 72.0, "sight": 120.0, "radius": 10.0, "time": 10.0,
+		"cost": {"food": 50}, "building_mult": 0.5,
 	},
 	"swordsman": {
 		"name": "Swordsman", "hp": 90.0, "damage": 9.0, "range": 14.0, "cooldown": 1.2,
-		"speed": 76.0, "sight": 170.0, "radius": 10.0, "time": 14.0,
-		"cost": {"wood": 20, "gold": 50}, "building_mult": 1.5,
+		"speed": 76.0, "sight": 170.0, "radius": 11.0, "time": 14.0,
+		"cost": {"food": 60, "gold": 20}, "building_mult": 1.0,
+	},
+	"spearman": {
+		"name": "Spearman", "hp": 70.0, "damage": 7.0, "range": 24.0, "cooldown": 1.3,
+		"speed": 78.0, "sight": 170.0, "radius": 11.0, "time": 12.0,
+		"cost": {"food": 35, "wood": 25}, "building_mult": 0.5, "bonus": {"knight": 3.0},
 	},
 	"archer": {
 		"name": "Archer", "hp": 45.0, "damage": 6.0, "range": 150.0, "cooldown": 1.6,
-		"speed": 80.0, "sight": 190.0, "radius": 9.0, "time": 14.0,
-		"cost": {"wood": 30, "gold": 40}, "ranged": true, "building_mult": 0.5,
+		"speed": 80.0, "sight": 190.0, "radius": 10.0, "time": 14.0,
+		"cost": {"wood": 30, "gold": 40}, "ranged": true, "building_mult": 0.3,
+	},
+	"knight": {
+		"name": "Knight", "hp": 160.0, "damage": 13.0, "range": 14.0, "cooldown": 1.5,
+		"speed": 64.0, "sight": 180.0, "radius": 12.0, "time": 20.0,
+		"cost": {"food": 80, "gold": 75}, "building_mult": 0.8,
+	},
+	"monk": {
+		"name": "Monk", "hp": 40.0, "damage": 0.0, "range": 70.0, "cooldown": 1.0,
+		"speed": 60.0, "sight": 190.0, "radius": 10.0, "time": 20.0,
+		"cost": {"gold": 100}, "building_mult": 0.0, "heal": 6.0,
+	},
+	# Animals (team GAIA). "food" is the meat left when they die.
+	"sheep": {
+		"name": "Sheep", "hp": 8.0, "damage": 0.0, "range": 10.0, "cooldown": 1.0,
+		"speed": 32.0, "sight": 60.0, "radius": 9.0, "animal": "passive", "food": 100,
+	},
+	"deer": {
+		"name": "Deer", "hp": 10.0, "damage": 0.0, "range": 10.0, "cooldown": 1.0,
+		"speed": 105.0, "sight": 100.0, "radius": 9.0, "animal": "flee", "food": 140,
+	},
+	"boar": {
+		"name": "Wild Boar", "hp": 75.0, "damage": 5.0, "range": 14.0, "cooldown": 1.4,
+		"speed": 70.0, "sight": 80.0, "radius": 11.0, "animal": "aggressive", "food": 300,
+		"building_mult": 0.2,
 	},
 }
 
 const BUILDING_DATA := {
 	"town_center": {
-		"name": "Town Center", "hp": 1500.0, "size": Vector2i(3, 3), "cost": {},
-		"build_time": 60.0, "pop": 5, "trains": ["villager"], "dropoff": true,
-		"attack": {"damage": 4.0, "range": 190.0, "cooldown": 2.0},
+		"name": "Town Center", "hp": 2400.0, "size": Vector2i(3, 3), "cost": {},
+		"build_time": 60.0, "pop": 5, "trains": ["villager"], "dropoff": ["food", "wood", "gold", "stone"],
+		"attack": {"damage": 6.0, "range": 190.0, "cooldown": 1.5},
 	},
 	"house": {
 		"name": "House", "hp": 300.0, "size": Vector2i(2, 2), "cost": {"wood": 30},
-		"build_time": 15.0, "pop": 5, "trains": [], "dropoff": false,
+		"build_time": 15.0, "pop": 5, "trains": [], "dropoff": [],
+	},
+	"farm": {
+		"name": "Farm", "hp": 200.0, "size": Vector2i(2, 2), "cost": {"wood": 60},
+		"build_time": 10.0, "pop": 0, "trains": [], "dropoff": [], "walkable": true, "food": 300,
+	},
+	"mill": {
+		"name": "Mill", "hp": 500.0, "size": Vector2i(2, 2), "cost": {"wood": 100},
+		"build_time": 20.0, "pop": 0, "trains": [], "dropoff": ["food"],
+	},
+	"lumber_camp": {
+		"name": "Lumber Camp", "hp": 500.0, "size": Vector2i(2, 2), "cost": {"wood": 100},
+		"build_time": 20.0, "pop": 0, "trains": [], "dropoff": ["wood"],
+	},
+	"mining_camp": {
+		"name": "Mining Camp", "hp": 500.0, "size": Vector2i(2, 2), "cost": {"wood": 100},
+		"build_time": 20.0, "pop": 0, "trains": [], "dropoff": ["gold", "stone"],
 	},
 	"barracks": {
 		"name": "Barracks", "hp": 800.0, "size": Vector2i(3, 3), "cost": {"wood": 150, "stone": 50},
-		"build_time": 30.0, "pop": 0, "trains": ["swordsman", "archer"], "dropoff": false,
+		"build_time": 30.0, "pop": 0, "trains": ["swordsman", "spearman", "archer", "knight"], "dropoff": [],
+	},
+	"watch_tower": {
+		"name": "Watch Tower", "hp": 700.0, "size": Vector2i(2, 2), "cost": {"wood": 50, "stone": 100},
+		"build_time": 25.0, "pop": 0, "trains": [], "dropoff": [],
+		"attack": {"damage": 6.0, "range": 220.0, "cooldown": 1.8},
+	},
+	"monastery": {
+		"name": "Monastery", "hp": 900.0, "size": Vector2i(3, 3), "cost": {"wood": 100, "stone": 150},
+		"build_time": 35.0, "pop": 0, "trains": ["monk"], "dropoff": [],
 	},
 }
-## Buildings a villager can construct, in HUD order.
-const BUILDABLE: Array[String] = ["house", "barracks"]
+## Buildings a villager can construct, as HUD pages (economy, military).
+const BUILD_PAGES := [
+	["house", "farm", "mill", "lumber_camp", "mining_camp"],
+	["barracks", "watch_tower", "monastery"],
+]
 
 var players: Array = []
 var units: Array = []
@@ -93,6 +154,8 @@ var _building_scene: PackedScene
 var _projectile_scene: PackedScene
 var _marker_script: Script
 var _decal_script: Script
+var _sprite_meta := {}
+var _textures := {}
 
 
 func _ready() -> void:
@@ -108,7 +171,7 @@ func _ready() -> void:
 func reset() -> void:
 	players.clear()
 	for i in 2:
-		players.append({"wood": 200, "gold": 100, "stone": 0})
+		players.append(START_RESOURCES.duplicate())
 	units.clear()
 	buildings.clear()
 	resources.clear()
@@ -173,6 +236,8 @@ func missing_text(team: int, cost: Dictionary) -> String:
 
 ## Population = living units + units waiting in training queues.
 func get_pop(team: int) -> int:
+	if team >= 2:
+		return 0
 	var n := 0
 	for u in units:
 		if u.team == team and not u.dead:
@@ -305,11 +370,12 @@ func get_town_center(team: int) -> Building:
 	return null
 
 
-func find_nearest_enemy(team: int, pos: Vector2, max_dist: float, units_only := false) -> Entity:
+## Nearest hostile entity. Animals (GAIA) are ignored unless include_gaia.
+func find_nearest_enemy(team: int, pos: Vector2, max_dist: float, units_only := false, include_gaia := false) -> Entity:
 	var best: Entity = null
 	var best_d := max_dist
 	for u in units:
-		if u.team != team and not u.dead:
+		if u.team != team and not u.dead and (include_gaia or u.team != GAIA):
 			var d: float = u.position.distance_to(pos) - u.radius
 			if d < best_d:
 				best_d = d
@@ -337,11 +403,12 @@ func find_nearest_resource(type: String, pos: Vector2, max_dist := FAR) -> Resou
 	return best
 
 
-func find_nearest_dropoff(team: int, pos: Vector2) -> Building:
+func find_nearest_dropoff(team: int, pos: Vector2, type := "") -> Building:
 	var best: Building = null
 	var best_d := FAR
 	for b in buildings:
-		if b.team == team and not b.dead and b.constructed and b.data.dropoff:
+		if b.team == team and not b.dead and b.constructed and not b.data.dropoff.is_empty() \
+				and (type == "" or b.data.dropoff.has(type)):
 			var d: float = b.distance_to_edge(pos)
 			if d < best_d:
 				best_d = d
@@ -379,6 +446,9 @@ func pick_at(pos: Vector2, radius: float) -> Node2D:
 	for b in buildings:
 		if not b.dead and b.visible and b.get_visual_rect().has_point(pos):
 			return b
+	for r in resources:
+		if not r.dead and not r.occupies and r.position.distance_to(pos) < radius + 12.0:
+			return r
 	var c := map.world_to_cell(pos)
 	var occ = map.occupancy.get(c)
 	if occ != null and occ.visible:
@@ -393,6 +463,26 @@ func pick_at(pos: Vector2, radius: float) -> Node2D:
 					best_d = d
 					best = o
 	return best
+
+
+# --- Sprite assets ------------------------------------------------------------------
+
+## Animation layout of the unit sprite sheets (generated by tools/build_unit_sprites.py).
+func sprite_meta(type: String) -> Dictionary:
+	if _sprite_meta.is_empty():
+		var f := FileAccess.open("res://art/units/sheets.json", FileAccess.READ)
+		if f != null:
+			_sprite_meta = JSON.parse_string(f.get_as_text())
+	return _sprite_meta.get(type, {})
+
+
+func unit_texture(type: String, team: int) -> Texture2D:
+	var path := "res://art/units/%s_%s.png" % [type, SPRITE_TEAMS[team]]
+	if UNIT_DATA[type].has("animal"):
+		path = "res://art/animals/%s.png" % type
+	if not _textures.has(path):
+		_textures[path] = load(path)
+	return _textures[path]
 
 
 static func alive(e) -> bool:
@@ -426,7 +516,7 @@ func clear_selection() -> void:
 func selected_own_units() -> Array:
 	var out := []
 	for e in selected:
-		if e is Unit and e.team == PLAYER and not e.dead:
+		if e is Unit and e.team == PLAYER and not e.dead and not e.is_animal:
 			out.append(e)
 	return out
 
@@ -439,7 +529,10 @@ func selected_own_building() -> Building:
 
 # --- Unit separation -----------------------------------------------------------
 
-## Gently pushes overlapping units apart using a spatial hash (O(n)).
+## Pushes overlapping units apart using a spatial hash (O(n)).
+## Units standing still give way to units walking past, and moving units are
+## never pushed back against their direction of travel (they slide sideways
+## around the blocker instead), so a stationary unit can't stall a mover.
 func _separate_units() -> void:
 	var grid := {}
 	for u in units:
@@ -451,6 +544,7 @@ func _separate_units() -> void:
 	for u in units:
 		var key := Vector2i(floori(u.position.x / TILE), floori(u.position.y / TILE))
 		var push := Vector2.ZERO
+		var moving: bool = u.move_dir != Vector2.ZERO
 		for dy in range(-1, 2):
 			for dx in range(-1, 2):
 				var bucket = grid.get(key + Vector2i(dx, dy))
@@ -460,7 +554,7 @@ func _separate_units() -> void:
 					if o == u:
 						continue
 					var diff: Vector2 = u.position - o.position
-					var min_d: float = (u.radius + o.radius) * 0.9
+					var min_d: float = (u.radius + o.radius) * 0.85
 					var l2 := diff.length_squared()
 					if l2 >= min_d * min_d:
 						continue
@@ -468,8 +562,23 @@ func _separate_units() -> void:
 						diff = Vector2(float(u.get_instance_id() % 7) - 3.0, 1.0)
 						l2 = diff.length_squared()
 					var l := sqrt(l2)
-					push += diff / l * (min_d - l) * 0.5
-		if push != Vector2.ZERO:
-			var np: Vector2 = u.position + push.limit_length(1.5)
-			if map.is_walkable_world(np):
-				u.position = np
+					var w := 0.5
+					var other_moving: bool = o.move_dir != Vector2.ZERO
+					if moving and not other_moving:
+						w = 0.15
+					elif other_moving and not moving:
+						w = 0.85
+					push += diff / l * (min_d - l) * w
+		if push == Vector2.ZERO:
+			continue
+		if moving:
+			var back := push.dot(u.move_dir)
+			if back < 0.0:
+				push -= u.move_dir * back
+				# Head-on: sidestep consistently to one side.
+				var side := Vector2(-u.move_dir.y, u.move_dir.x)
+				if absf(push.dot(side)) < 0.2:
+					push += side * (0.6 if u.get_instance_id() % 2 == 0 else -0.6)
+		var np: Vector2 = u.position + push.limit_length(1.5)
+		if map.is_walkable_world(np):
+			u.position = np

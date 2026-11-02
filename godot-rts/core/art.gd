@@ -22,7 +22,8 @@ const ROOF_RED := Color(0.68, 0.3, 0.2)
 const GLASS := Color(0.2, 0.25, 0.32)
 
 ## Height of each building's front wall (the part drawn above its footprint).
-const WALL_HEIGHT := {"house": 20.0, "barracks": 26.0, "town_center": 32.0}
+const WALL_HEIGHT := {"house": 20.0, "barracks": 26.0, "town_center": 32.0, "farm": 0.0,
+	"mill": 22.0, "lumber_camp": 16.0, "mining_camp": 16.0, "watch_tower": 58.0, "monastery": 30.0}
 
 
 # --- Primitives ----------------------------------------------------------------------
@@ -210,7 +211,7 @@ static func draw_person(ci: CanvasItem, kind: String, team: Color, facing: float
 
 ## Draws a building centred on its footprint. size = footprint in pixels.
 ## progress < 1 draws the construction stages.
-static func draw_building(ci: CanvasItem, type: String, team: Color, size: Vector2, progress := 1.0) -> void:
+static func draw_building(ci: CanvasItem, type: String, team: Color, size: Vector2, progress := 1.0, animated_parts := false) -> void:
 	var r := Rect2(-size * 0.5 + Vector2(3, 3), size - Vector2(6, 6))
 	var h: float = WALL_HEIGHT.get(type, 22.0)
 	if progress < 1.0:
@@ -224,6 +225,20 @@ static func draw_building(ci: CanvasItem, type: String, team: Color, size: Vecto
 			_draw_barracks(ci, r, h, team)
 		"town_center":
 			_draw_town_center(ci, r, h, team)
+		"farm":
+			draw_farm(ci, size, 1.0)
+		"mill":
+			_draw_mill(ci, r, h, team)
+			if not animated_parts:
+				draw_mill_sails(ci, Vector2(0, r.position.y - h + 2), 0.4)
+		"lumber_camp":
+			_draw_camp(ci, r, h, team, "wood")
+		"mining_camp":
+			_draw_camp(ci, r, h, team, "ore")
+		"watch_tower":
+			_draw_watch_tower(ci, r, h, team)
+		"monastery":
+			_draw_monastery(ci, r, h, team)
 
 
 static func chimney_offset(type: String, size: Vector2) -> Vector2:
@@ -380,6 +395,13 @@ static func _draw_town_center(ci: CanvasItem, r: Rect2, h: float, team: Color) -
 
 
 static func _draw_construction(ci: CanvasItem, r: Rect2, h: float, p: float, team: Color) -> void:
+	if h <= 0.0:  # farm: field being dug
+		ci.draw_rect(r, Color(0.45, 0.33, 0.2, 0.9))
+		var rows := int(r.size.y / 8.0)
+		for i in int(rows * p):
+			var y := r.position.y + 4.0 + i * 8.0
+			ci.draw_line(Vector2(r.position.x + 3, y), Vector2(r.end.x - 3, y), Color(0.32, 0.22, 0.12), 2.0)
+		return
 	ci.draw_rect(r, Color(0.5, 0.4, 0.26, 0.85))
 	ci.draw_rect(r, STONE_DARK, false, 3.0)
 	if p < 0.35:
@@ -488,6 +510,12 @@ static func draw_stump(ci: CanvasItem) -> void:
 static func draw_resource_icon(ci: CanvasItem, type: String, c: Vector2, s: float) -> void:
 	var k := s / 24.0
 	match type:
+		"food":
+			for p in [Vector2(-4, 3), Vector2(4, 3), Vector2(0, -3), Vector2(-1, 6)]:
+				ci.draw_circle(c + p * k, 4.8 * k, OUTLINE)
+				ci.draw_circle(c + p * k, 4.0 * k, Color(0.8, 0.15, 0.22))
+				ci.draw_circle(c + (p + Vector2(-1.3, -1.3)) * k, 1.4 * k, Color(1, 0.65, 0.65))
+			poly(ci, [c + Vector2(-1, -7) * k, c + Vector2(5, -11) * k, c + Vector2(3, -6) * k], Color(0.3, 0.6, 0.2))
 		"wood":
 			for p in [Vector2(-5, 4), Vector2(5, 4), Vector2(0, -4)]:
 				ci.draw_circle(c + p * k, 5.2 * k, OUTLINE)
@@ -508,3 +536,141 @@ static func draw_resource_icon(ci: CanvasItem, type: String, c: Vector2, s: floa
 			ci.draw_circle(c + Vector2(0, -5) * k, 3.7 * k, SKIN)
 			poly(ci, [c + Vector2(-7, 9) * k, c + Vector2(7, 9) * k, c + Vector2(4, 0) * k, c + Vector2(-4, 0) * k],
 				Color(0.4, 0.55, 0.85), OUTLINE, 1.0)
+
+
+# --- New buildings ----------------------------------------------------------------------
+
+static func _plaster_wall(ci: CanvasItem, r: Rect2, h: float) -> Rect2:
+	ci.draw_rect(Rect2(r.position.x, r.end.y - 4, r.size.x, 4), STONE_DARK)
+	var wall := Rect2(r.position.x + 2, r.end.y - h - 3, r.size.x - 4, h)
+	box(ci, wall, PLASTER)
+	ci.draw_line(Vector2(wall.position.x, wall.position.y + 1), Vector2(wall.end.x, wall.position.y + 1), WOOD_DARK, 2.0)
+	return wall
+
+
+static func _draw_mill(ci: CanvasItem, r: Rect2, h: float, team: Color) -> void:
+	var wall := _plaster_wall(ci, r, h)
+	box(ci, Rect2(-5, wall.end.y - 12, 10, 12), WOOD_DARK, OUTLINE, 1.0)
+	for i in 3:
+		var x := wall.position.x + 6 + i * 5.0
+		ellipse(ci, Vector2(x, wall.end.y - 3), 3.0, 4.0, Color(0.85, 0.75, 0.5), 8)
+	_gable_roof(ci, r, h, THATCH, 4.0, false)
+	ci.draw_line(Vector2(r.position.x - 6, r.end.y - h + 1), Vector2(r.end.x + 6, r.end.y - h + 1), team, 3.0)
+
+
+static func draw_mill_sails(ci: CanvasItem, hub: Vector2, angle: float) -> void:
+	for i in 4:
+		var a := angle + i * PI * 0.5
+		var d := Vector2.from_angle(a)
+		var n := Vector2(-d.y, d.x)
+		ci.draw_line(hub, hub + d * 26.0, WOOD_DARK, 2.0)
+		poly(ci, [hub + d * 8.0, hub + d * 26.0, hub + d * 26.0 + n * 7.0, hub + d * 8.0 + n * 7.0],
+			Color(0.95, 0.92, 0.84), OUTLINE, 1.0)
+	ci.draw_circle(hub, 3.0, WOOD_DARK)
+
+
+static func _draw_camp(ci: CanvasItem, r: Rect2, h: float, team: Color, goods: String) -> void:
+	# Open-fronted shed: posts and a lean-to roof, goods piled in front.
+	var back := Rect2(r.position.x + 2, r.position.y - h + 6, r.size.x - 4, r.size.y * 0.55)
+	ci.draw_rect(back, Color(0.3, 0.22, 0.14))
+	for x in [r.position.x + 3, r.end.x - 5]:
+		ci.draw_rect(Rect2(x, r.position.y - h + 6, 3, r.size.y * 0.55 + h - 6), WOOD_DARK)
+	poly(ci, [Vector2(r.position.x - 4, r.position.y - h + 2), Vector2(r.end.x + 4, r.position.y - h + 2),
+		Vector2(r.end.x + 6, r.position.y - h + 16), Vector2(r.position.x - 6, r.position.y - h + 16)], WOOD.lightened(0.05), OUTLINE, 1.5)
+	for i in 4:
+		var y := r.position.y - h + 5 + i * 3.0
+		ci.draw_line(Vector2(r.position.x - 3, y), Vector2(r.end.x + 3, y), WOOD_DARK.lightened(0.1), 1.0)
+	ci.draw_line(Vector2(r.position.x - 6, r.position.y - h + 16), Vector2(r.end.x + 6, r.position.y - h + 16), team, 3.0)
+	var base_y := r.end.y - 6
+	if goods == "wood":
+		for row in 3:
+			for i in 4 - row:
+				var c := Vector2(r.position.x + 12 + i * 9.0 + row * 4.5, base_y - row * 7.0)
+				ci.draw_circle(c, 4.6, OUTLINE)
+				ci.draw_circle(c, 3.8, WOOD.lightened(0.3))
+				ci.draw_arc(c, 1.8, 0.0, TAU, 8, WOOD, 1.0)
+	else:
+		poly(ci, [Vector2(r.position.x + 6, base_y), Vector2(r.position.x + 30, base_y),
+			Vector2(r.position.x + 24, base_y - 12), Vector2(r.position.x + 12, base_y - 13)], STONE, OUTLINE, 1.2)
+		for i in 4:
+			ci.draw_circle(Vector2(r.position.x + 12 + i * 4.5, base_y - 6 - (i % 2) * 3), 2.0, Color(1, 0.8, 0.2))
+		box(ci, Rect2(r.end.x - 26, base_y - 12, 18, 9), WOOD, OUTLINE, 1.0)
+		for wx in [r.end.x - 23, r.end.x - 11]:
+			ci.draw_circle(Vector2(wx, base_y - 2), 3.2, WOOD_DARK)
+	flag(ci, Vector2(r.end.x - 2, r.position.y - h + 2), 12.0, team)
+
+
+static func _draw_watch_tower(ci: CanvasItem, r: Rect2, h: float, team: Color) -> void:
+	var w := r.size.x * 0.62
+	var body := Rect2(-w * 0.5, r.end.y - h, w, h)
+	_stone_wall(ci, body, STONE)
+	box(ci, Rect2(-4, body.end.y - 12, 8, 12), WOOD_DARK, OUTLINE, 1.0)
+	box(ci, Rect2(-2, body.position.y + 12, 4, 7), GLASS, OUTLINE, 1.0)
+	var top := Rect2(-w * 0.5 - 5, body.position.y - 8, w + 10, 10)
+	_stone_wall(ci, top, STONE.lightened(0.05))
+	var mx := top.position.x
+	while mx < top.end.x - 3:
+		box(ci, Rect2(mx, top.position.y - 5, 5, 5), STONE.lightened(0.05), OUTLINE, 1.0)
+		mx += 8.0
+	poly(ci, [Vector2(top.position.x - 2, top.position.y - 5), Vector2(top.end.x + 2, top.position.y - 5), Vector2(0, top.position.y - 30)],
+		team.darkened(0.2), OUTLINE, 1.5)
+	flag(ci, Vector2(0, top.position.y - 30), 12.0, team, 1.0)
+
+
+static func _draw_monastery(ci: CanvasItem, r: Rect2, h: float, team: Color) -> void:
+	var wall := Rect2(r.position.x + 2, r.end.y - h - 2, r.size.x - 22, h)
+	_stone_wall(ci, wall, PLASTER.darkened(0.08))
+	for i in 3:
+		var x := wall.position.x + 10 + i * 18.0
+		box(ci, Rect2(x, wall.position.y + 8, 7, 12), GLASS, OUTLINE, 1.0)
+		ellipse(ci, Vector2(x + 3.5, wall.position.y + 8), 3.5, 3.0, GLASS)
+	var rr := Rect2(r.position.x, r.position.y, r.size.x - 20, r.size.y)
+	_gable_roof(ci, rr, h, ROOF_RED.darkened(0.1), 4.0, true)
+	# Bell tower on the right.
+	var tw := Rect2(r.end.x - 22, r.end.y - h - 30, 20, h + 28)
+	_stone_wall(ci, tw, STONE)
+	box(ci, Rect2(tw.position.x + 6, tw.position.y + 6, 8, 10), Color(0.15, 0.12, 0.1), OUTLINE, 1.0)
+	ci.draw_circle(Vector2(tw.get_center().x, tw.position.y + 13), 3.0, Color(0.85, 0.7, 0.3))
+	poly(ci, [Vector2(tw.position.x - 3, tw.position.y), Vector2(tw.end.x + 3, tw.position.y), Vector2(tw.get_center().x, tw.position.y - 22)],
+		ROOF_RED.darkened(0.1), OUTLINE, 1.2)
+	box(ci, Rect2(-6, wall.end.y - 16, 12, 16), WOOD_DARK, OUTLINE, 1.0)
+	ellipse(ci, Vector2(0, wall.end.y - 16), 6.0, 4.0, WOOD_DARK)
+	poly(ci, [Vector2(-34, wall.position.y + 2), Vector2(-26, wall.position.y + 2), Vector2(-26, wall.position.y + 20),
+		Vector2(-30, wall.position.y + 17), Vector2(-34, wall.position.y + 20)], team, OUTLINE, 1.0)
+
+
+# --- Food sources ------------------------------------------------------------------------
+
+static func draw_berry_bush(ci: CanvasItem, rng: RandomNumberGenerator, fullness: float) -> void:
+	shadow(ci, Vector2(3, 7), 14.0, 5.0, 0.28)
+	var g := Color(0.2, 0.42, 0.18)
+	ellipse(ci, Vector2(0, -1), 14.0, 11.0, OUTLINE, 14)
+	ellipse(ci, Vector2(0, -1), 13.0, 10.0, g.darkened(0.25), 14)
+	for i in 5:
+		ci.draw_circle(Vector2(rng.randf_range(-8, 8), rng.randf_range(-7, 4)), rng.randf_range(4.0, 6.0), g)
+	ci.draw_circle(Vector2(-4, -6), 3.5, g.lightened(0.15))
+	var n := int(ceil(10.0 * fullness))
+	for i in 10:
+		var p := Vector2(rng.randf_range(-10, 10), rng.randf_range(-8, 6))
+		if i < n:
+			ci.draw_circle(p, 2.2, Color(0.75, 0.1, 0.2))
+			ci.draw_circle(p + Vector2(-0.6, -0.6), 0.8, Color(1, 0.6, 0.6))
+
+
+## Farm field: tilled rows with crops that shrink as the food runs out.
+static func draw_farm(ci: CanvasItem, size: Vector2, fullness: float) -> void:
+	var r := Rect2(-size * 0.5 + Vector2(2, 2), size - Vector2(4, 4))
+	ci.draw_rect(r, Color(0.48, 0.35, 0.2))
+	ci.draw_rect(r, Color(0.35, 0.25, 0.14), false, 2.0)
+	var rows := int(r.size.y / 8.0)
+	var crop := Color(0.75, 0.68, 0.25).lerp(Color(0.45, 0.6, 0.2), 0.3)
+	for i in rows:
+		var y := r.position.y + 5.0 + i * 8.0
+		ci.draw_line(Vector2(r.position.x + 3, y + 2), Vector2(r.end.x - 3, y + 2), Color(0.33, 0.23, 0.13), 2.0)
+		if fullness > 0.0:
+			var x := r.position.x + 5.0
+			while x < r.end.x - 4:
+				var hgt := 2.0 + 5.0 * fullness
+				ci.draw_line(Vector2(x, y + 1), Vector2(x, y + 1 - hgt), crop, 1.6)
+				ci.draw_circle(Vector2(x, y - hgt), 1.4, crop.lightened(0.2))
+				x += 5.0

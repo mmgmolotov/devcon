@@ -31,11 +31,25 @@ func setup(building_type: String, building_team: int, at_cell: Vector2i, complet
 	constructed = complete
 	hp = max_hp if complete else maxf(1.0, max_hp * 0.1)
 	position = Game.map.cell_to_world(cell) + Vector2(size) * Game.TILE * 0.5
-	Game.map.occupy(cell, size, self)
+	Game.map.occupy(cell, size, self, not data.get("walkable", false))
+
+
+var _sails: Node2D
+
+
+## Rotating windmill sails (a child node, so the building art stays cached).
+class Sails extends Node2D:
+	func _draw() -> void:
+		Art.draw_mill_sails(self, Vector2.ZERO, 0.0)
 
 
 func _ready() -> void:
 	Game.register_building(self)
+	if type == "mill":
+		_sails = Sails.new()
+		_sails.position = Vector2(0, -Vector2(size).y * Game.TILE * 0.5 + 3.0 - Art.WALL_HEIGHT.mill + 2.0)
+		_sails.visible = constructed
+		add_child(_sails)
 
 
 func get_display_name() -> String:
@@ -92,7 +106,12 @@ func add_build_work(delta: float) -> void:
 
 
 func _complete() -> void:
+	if type == "farm":
+		_become_field()
+		return
 	constructed = true
+	if _sails != null:
+		_sails.visible = true
 	if hp > max_hp * 0.97:
 		hp = max_hp  # absorb float rounding from incremental construction
 	queue_redraw()
@@ -136,6 +155,25 @@ func set_rally(p: Vector2) -> void:
 	rally_point = p
 	has_rally = true
 	queue_redraw()
+
+
+## A finished farm turns into a walkable food field that villagers work.
+func _become_field() -> void:
+	var builders := Game.units.filter(func(u): return u.team == team and u.state == Unit.State.BUILD and u.target == self)
+	dead = true
+	Game.on_entity_died(self)
+	Game.map.free_area(cell, size)
+	var field := Game.map.add_resource_node("farm", cell, size)
+	field.team = team
+	Game.notify_player(team, "Farm ready")
+	for u in builders:
+		u.command_gather(field)
+	queue_free()
+
+
+func _process(delta: float) -> void:
+	if _sails != null and constructed and visible:
+		_sails.rotation += delta * 0.9
 
 
 func _physics_process(delta: float) -> void:
@@ -221,7 +259,7 @@ func _draw() -> void:
 	if selected:
 		Art.ellipse_outline(self, Vector2.ZERO, half.x + 6.0, half.y + 4.0, Color(0.45, 1.0, 0.45), 2.0)
 	var progress: float = 1.0 if constructed else build_progress / data.build_time
-	Art.draw_building(self, type, col, s, progress)
+	Art.draw_building(self, type, col, s, progress, _sails != null)
 	if selected and has_rally and team == Game.PLAYER:
 		var rp := rally_point - position
 		draw_dashed_line(Vector2.ZERO, rp, Color(1, 1, 1, 0.7), 2.0, 8.0)
