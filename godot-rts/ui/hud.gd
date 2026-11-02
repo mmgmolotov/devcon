@@ -332,7 +332,8 @@ func _build_credits() -> void:
 		+ "Evert, TheraHedwig, Durrani, Inboxninja and others.\n\n"
 		+ "Sheep and boar: 'LPC style farm animals' by daneeklu (CC-BY 3.0).\n"
 		+ "Deer: 'Deer' by Calciumtrice (CC-BY 3.0).\n"
-		+ "Music & sounds: Ninja Adventure pack by Pixel-boy & AAA, and Kenney audio packs (CC0).\n\n"
+		+ "Music & sounds: Ninja Adventure pack by Pixel-boy & AAA, and Kenney audio packs (CC0).\n"
+		+ "Grass textures: openage-data by the openage authors (CC-BY-SA 4.0).\n\n"
 		+ "Full list with sources and licences: CREDITS.md")
 	box.add_child(body)
 	var close := _text_button("Close", Vector2(160, 60), func(): _credits.visible = false)

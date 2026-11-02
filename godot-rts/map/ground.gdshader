@@ -4,6 +4,9 @@ shader_type canvas_item;
 // noise texture sampled at several scales (cheap on mobile GPUs).
 
 uniform sampler2D noise_tex : repeat_enable, filter_linear;
+// Painted grass tiles from openage-data (CC-BY-SA 4.0, see CREDITS.md).
+uniform sampler2D grass_tex : repeat_enable, filter_linear_mipmap;
+uniform sampler2D dry_tex : repeat_enable, filter_linear_mipmap;
 uniform vec2 map_px = vec2(2048.0, 2048.0);
 
 float hash(vec2 p) {
@@ -18,10 +21,12 @@ void fragment() {
 	float n_small = texture(noise_tex, wp / 55.0).r;
 	float n_fine = texture(noise_tex, wp / 13.0).r;
 
-	// Grass with large colour patches and fine blade texture.
-	vec3 col = mix(vec3(0.27, 0.46, 0.17), vec3(0.44, 0.61, 0.25), smoothstep(0.3, 0.7, n_big * 0.6 + n_mid * 0.4));
-	col *= 0.92 + 0.14 * n_fine;
-	col = mix(col, col * vec3(0.9, 1.06, 0.82), smoothstep(0.55, 0.72, n_small));
+	// Painted grass, with dry patches blended in by large-scale noise.
+	vec3 g1 = texture(grass_tex, wp / 384.0).rgb;
+	vec3 g2 = texture(dry_tex, wp / 384.0 + vec2(0.37, 0.61)).rgb;
+	vec3 col = mix(g1, g2, smoothstep(0.5, 0.78, n_big * 0.7 + n_mid * 0.3));
+	// Slightly deeper, less yellow tone and gentle large-scale shading.
+	col *= vec3(0.86, 0.95, 0.78) * (0.88 + 0.16 * n_mid);
 
 	// Scattered flowers and tufts.
 	vec2 cell = floor(wp / 12.0);

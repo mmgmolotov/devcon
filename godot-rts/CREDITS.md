@@ -8,6 +8,15 @@ licences. They are attributed below as those licences require. Modified versions
 (composited, recoloured and downscaled by `tools/build_unit_sprites.py` and
 `tools/build_animal_sprites.py`) are shared under the same licences.
 
+## Terrain
+
+- **Grass textures** (`art/terrain/grass.png`, `art/terrain/dry_grass.png`): from
+  **openage-data** by **the openage authors** (Jonas Jelten, Martin Castillo, Elias
+  Hoigstvedt, Wilco Kusee, KevDoy and contributors), licensed **CC-BY-SA 4.0**.
+  https://github.com/SFTtech/openage-data
+  These are original free textures made by the openage project, not Age of Empires art.
+  They are used unmodified, tiled and tinted in `map/ground.gdshader`.
+
 ## Audio (all CC0 / public domain)
 
 - **Music** (`audio/music/`) and some effects (arrows, hits, healing, victory/defeat

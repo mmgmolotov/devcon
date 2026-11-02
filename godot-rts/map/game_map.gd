@@ -223,6 +223,8 @@ func _build_ground() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://map/ground.gdshader")
 	mat.set_shader_parameter("noise_tex", noise_tex)
+	mat.set_shader_parameter("grass_tex", preload("res://art/terrain/grass.png"))
+	mat.set_shader_parameter("dry_tex", preload("res://art/terrain/dry_grass.png"))
 	mat.set_shader_parameter("map_px", get_world_size())
 	var s := Sprite2D.new()
 	s.name = "Ground"

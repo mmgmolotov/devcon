@@ -261,7 +261,8 @@ func _build_credits_panel() -> Control:
 		+ "JaidynReiman, wulax, Redshrike, makrohn, pvigier, BenCreating, ElizaWy, bigbeargames, "
 		+ "castelonia, drjamgo and others.\n"
 		+ "Animals: daneeklu (sheep, boar), Calciumtrice (deer) - CC-BY 3.0.\n"
-		+ "Music & sounds: Ninja Adventure by Pixel-boy & AAA, and Kenney audio packs - CC0.\n\n"
+		+ "Music & sounds: Ninja Adventure by Pixel-boy & AAA, and Kenney audio packs - CC0.\n"
+		+ "Grass textures: openage-data by the openage authors - CC-BY-SA 4.0.\n\n"
 		+ "Full details: CREDITS.md")
 	box.add_child(body)
 	var back := UITheme.button("Back", Vector2(220, 70), func():
