@@ -28,6 +28,16 @@ func _ready() -> void:
 			seed_value = int(a.substr(7))
 	seed(seed_value)
 	_start_usec = Time.get_ticks_usec()
+	var args := OS.get_cmdline_user_args()
+	if args.has("--survival"):
+		_run_survival()
+		return
+	if args.has("--menu"):
+		_run_menu()
+		return
+	Game.mode = "skirmish"
+	Game.difficulty = 1
+	Game.random_map = false
 	_main = load("res://main/main.tscn").instantiate()
 	add_child(_main)
 	_ai = _main.get_node("EnemyAI")
@@ -91,6 +101,12 @@ func _give_player_orders() -> void:
 func _physics_process(_delta: float) -> void:
 	_frame += 1
 	var t := _frame / FPS
+	if _phase >= 200:
+		_menu_tick(t)
+		return
+	if _phase >= 100:
+		_survival_tick(t)
+		return
 	if not _wave_reached_base and _frame % 30 == 0 and Game.get_town_center(0) != null:
 		var ptc := Game.get_town_center(0)
 		_wave_reached_base = Game.units.any(func(u): return u.team == 1 and u.attack_move and ptc.distance_to_edge(u.position) < 400.0)
@@ -170,6 +186,74 @@ func _test_defeat() -> void:
 	_check(not Game.is_over and Game.units.filter(func(u): return u.team < 2).size() == 6, "match restarts cleanly")
 	Game.get_town_center(0).take_damage(1.0e6)
 	_check(Game.is_over and Game.winner == Game.ENEMY, "losing own Town Center is a defeat")
+
+
+# --- Survival mode: waves spawn from the edges and attack the player --------------
+
+func _run_survival() -> void:
+	Game.mode = "survival"
+	Game.difficulty = 1
+	_main = load("res://main/main.tscn").instantiate()
+	add_child(_main)
+	_check(Game.get_town_center(Game.ENEMY) == null, "survival: no enemy base")
+	_check(_main.has_node("SurvivalDirector"), "survival: wave director running")
+	_check(Game.players[0].wood == 400, "survival: bonus starting resources")
+	_phase = 100
+
+
+func _survival_tick(t: float) -> void:
+	if _phase == 100 and t >= 170.0:
+		var raiders := Game.units.filter(func(u): return u.team == Game.ENEMY)
+		_check(raiders.size() >= 2, "survival: first raider wave spawned (%d)" % raiders.size())
+		_check(raiders.all(func(u): return u.attack_move), "survival: raiders march on the player")
+		_check(Game.status_text.begins_with("Wave"), "survival: HUD countdown text (%s)" % Game.status_text)
+		var director = _main.get_node("SurvivalDirector")
+		director.wave = director.TOTAL_WAVES
+		for u in raiders:
+			u.take_damage(1e6)
+		_phase = 101
+	elif _phase == 101 and t >= 172.0:
+		_check(Game.is_over and Game.winner == Game.PLAYER, "survival: surviving every wave is a victory")
+		_finish_simple()
+
+
+# --- Main menu: builds, runs the AI-vs-AI demo and starts a game ------------------
+
+func _run_menu() -> void:
+	_main = load("res://ui/main_menu.tscn").instantiate()
+	add_child(_main)
+	_check(Game.mode == "demo", "menu: background demo battle running")
+	_check(Game.units.filter(func(u): return u.team < 2).size() == 6, "menu: demo spawned both bases")
+	_phase = 200
+
+
+func _menu_tick(t: float) -> void:
+	if _phase == 200 and t >= 90.0:
+		var ai_count := _main.get_child(0).get_children().filter(func(n): return n.get_script() == preload("res://ai/enemy_ai.gd")).size()
+		_check(ai_count == 2, "menu: AI controls both demo teams")
+		_check(Game.units.filter(func(u): return u.team == 0 and u.is_villager).size() > 3, "menu: demo AI grows team 0")
+		_main._mode = "sandbox"
+		_main._start_game()
+		# Check before the fade finishes and the scene switches away from the test.
+		_check(Game.mode == "sandbox", "menu: START applies the chosen mode")
+		_finish_simple()
+
+
+func _finish_simple() -> void:
+	set_physics_process(false)
+	if _failures.is_empty():
+		print("SMOKE TEST PASSED (%d checks)" % _passed.size())
+	else:
+		print("SMOKE TEST FAILED: ", _failures)
+	for c in get_tree().root.get_children():
+		if c != self and c.name not in ["Game", "Sound"]:
+			c.queue_free()
+	if is_instance_valid(_main):
+		_main.queue_free()
+	Sound.stop_all()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_tree().quit(0 if _failures.is_empty() else 1)
 
 
 func _player_villagers() -> Array:

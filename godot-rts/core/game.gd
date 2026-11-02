@@ -174,6 +174,15 @@ var fog: Node2D
 var camera: RTSCamera
 var placement_ghost: Node2D
 
+## Match settings chosen in the main menu (kept across reset()).
+var mode := "skirmish"      ## skirmish | survival | sandbox | demo
+var difficulty := 1         ## 0 easy, 1 normal, 2 hard
+var random_map := false
+## Gather speed multiplier per team (the AI gets a bonus/penalty by difficulty).
+var gather_mult: Array[float] = [1.0, 1.0, 1.0]
+## Extra line shown in the HUD (e.g. survival wave countdown).
+var status_text := ""
+
 var is_over := false
 var winner := -1
 var elapsed := 0.0
@@ -210,6 +219,17 @@ func reset() -> void:
 	elapsed = 0.0
 	fx = null
 	fog = null
+	status_text = ""
+	gather_mult = [1.0, [0.8, 1.0, 1.25][difficulty], 1.0]
+	if mode == "sandbox":
+		for p in players:
+			for k in p:
+				p[k] = 1000
+	elif mode == "survival":
+		players[PLAYER] = {"food": 300, "wood": 400, "gold": 200, "stone": 200}
+	elif difficulty == 2:
+		for k in players[ENEMY]:
+			players[ENEMY][k] += 150
 
 
 func _physics_process(delta: float) -> void:

@@ -59,6 +59,8 @@ var _in_game := false
 ## Own RNG so audio (which depends on wall-clock rate limits) never shifts the
 ## game simulation's random sequence.
 var _rng := RandomNumberGenerator.new()
+## No audio output in headless runs (tests/CI): skip playback entirely.
+var _silent := DisplayServer.get_name() == "headless"
 
 
 func _ready() -> void:
@@ -98,7 +100,7 @@ func _stream(path: String) -> AudioStream:
 ## Plays an effect. With a world position, it is skipped when far off-screen
 ## and gets quieter with distance from the camera centre.
 func play(sound: String, world_pos = null, volume_db := 0.0) -> void:
-	if sfx_volume <= 0.01 or not SFX.has(sound):
+	if _silent or sfx_volume <= 0.01 or not SFX.has(sound):
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if now - float(_last.get(sound, -10.0)) < GAPS.get(sound, 0.05):
@@ -121,7 +123,7 @@ func play(sound: String, world_pos = null, volume_db := 0.0) -> void:
 
 ## Crossfades to a music track ("" stops the music).
 func play_music(track: String) -> void:
-	if track == _music_name:
+	if track == _music_name or _silent:
 		return
 	_music_name = track
 	var old := _music[_music_idx]

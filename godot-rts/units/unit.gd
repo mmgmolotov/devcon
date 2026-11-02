@@ -420,7 +420,7 @@ func _process_gather(delta: float) -> void:
 		_working = true
 		_face(resource_target.position)
 		gather_timer += delta
-		var interval: float = 1.0 / (Game.GATHER_RATES[resource_type] * resource_target.gather_mult)
+		var interval: float = 1.0 / (Game.GATHER_RATES[resource_type] * resource_target.gather_mult * Game.gather_mult[team])
 		if gather_timer >= interval:
 			gather_timer -= interval
 			if carry_type != resource_target.type:
@@ -468,6 +468,8 @@ func _process_build(delta: float) -> void:
 		_working = true
 		_face(target.position)
 		target.add_build_work(delta)
+		if state != State.BUILD or not Game.alive(target):
+			return  # a finished farm turns into a field and reassigns us
 		_dust_timer -= delta
 		if _dust_timer <= 0.0:
 			_dust_timer = 0.6

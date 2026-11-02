@@ -12,9 +12,10 @@ config_version=5
 
 config/name="Tiny Realms"
 config/description="A small original real-time strategy game for Android."
-run/main_scene="res://main/main.tscn"
+run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 config/icon="res://icon.svg"
+config/quit_on_go_back=false
 
 [autoload]
 

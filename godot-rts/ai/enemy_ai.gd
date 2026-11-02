@@ -6,12 +6,14 @@ extends Node
 ## a barracks, trains soldiers and defends its base. Every few minutes it
 ## sends its army to attack the player in a wave that grows over time.
 
-const TEAM := 1
 const THINK_INTERVAL := 1.0
-const FIRST_WAVE_TIME := 300.0
-const WAVE_INTERVAL := 150.0
+## Per difficulty (easy, normal, hard).
+const FIRST_WAVE := [420.0, 300.0, 220.0]
+const WAVE_GAP := [200.0, 150.0, 115.0]
+const WAVE_BASE := [3, 4, 6]
+const WAVE_GROWTH := [2, 3, 4]
+const VILLAGER_GOAL := [9, 12, 16]
 const RETRY_DELAY := 30.0
-const TARGET_VILLAGERS := 12
 const DEFENSE_RADIUS := 360.0
 ## Desired share of villagers per resource, before/after the barracks exists.
 const SPLIT_EARLY := {"food": 0.4, "wood": 0.35, "gold": 0.1, "stone": 0.15}
@@ -20,7 +22,11 @@ const ARMY_MIX: Array[String] = ["swordsman", "archer", "spearman", "axeman", "c
 const MAX_FARMS := 6
 const CAMP_DISTANCE := 260.0
 
-var wave_timer := FIRST_WAVE_TIME
+## Team this AI controls. In the menu's demo battle both teams use an AI.
+@export var team := 1
+var difficulty := 1
+var waves_enabled := true
+var wave_timer := 300.0
 var waves_sent := 0
 var _think_timer := 1.0
 var _mix_index := 0
@@ -28,7 +34,10 @@ var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
-	_rng.seed = 7
+	_rng.seed = 7 + team
+	difficulty = Game.difficulty
+	wave_timer = FIRST_WAVE[difficulty]
+	waves_enabled = Game.mode in ["skirmish", "demo"]
 
 
 func _physics_process(delta: float) -> void:
@@ -39,18 +48,18 @@ func _physics_process(delta: float) -> void:
 	if _think_timer <= 0.0:
 		_think_timer = THINK_INTERVAL
 		_think()
-	if wave_timer <= 0.0:
+	if wave_timer <= 0.0 and waves_enabled:
 		_send_wave()
 
 
 func _think() -> void:
-	var tc := Game.get_town_center(TEAM)
+	var tc := Game.get_town_center(team)
 	if tc == null:
 		return
 	var villagers := []
 	var soldiers := []
 	for u in Game.units:
-		if u.team == TEAM and not u.dead:
+		if u.team == team and not u.dead:
 			if u.is_villager:
 				villagers.append(u)
 			elif not u.is_monk:
@@ -63,7 +72,7 @@ func _think() -> void:
 
 
 func _own_buildings(type: String) -> Array:
-	return Game.buildings.filter(func(b): return b.team == TEAM and not b.dead and b.type == type)
+	return Game.buildings.filter(func(b): return b.team == team and not b.dead and b.type == type)
 
 
 func _assign_gatherers(villagers: Array, tc: Building, early: bool) -> void:
@@ -95,7 +104,7 @@ func _assign_gatherers(villagers: Array, tc: Building, early: bool) -> void:
 
 
 func _manage_construction(villagers: Array, tc: Building, barracks: Array) -> void:
-	var unfinished := Game.buildings.filter(func(b): return b.team == TEAM and not b.dead and not b.constructed)
+	var unfinished := Game.buildings.filter(func(b): return b.team == team and not b.dead and not b.constructed)
 	for b in unfinished:
 		var has_builder := villagers.any(func(v): return v.state == Unit.State.BUILD and v.target == b)
 		if not has_builder:
@@ -104,8 +113,8 @@ func _manage_construction(villagers: Array, tc: Building, barracks: Array) -> vo
 				v.command_build(b)
 	if not unfinished.is_empty() or villagers.size() < 3:
 		return
-	var pop := Game.get_pop(TEAM)
-	var cap := Game.get_pop_cap(TEAM)
+	var pop := Game.get_pop(team)
+	var cap := Game.get_pop_cap(team)
 	if cap < Game.MAX_POP and cap - pop <= 2:
 		_try_build("house", villagers, tc)
 	elif _needs_farm(tc):
@@ -125,8 +134,8 @@ func _manage_construction(villagers: Array, tc: Building, barracks: Array) -> vo
 
 
 func _own_count(type: String) -> int:
-	return Game.buildings.filter(func(b): return b.team == TEAM and not b.dead and b.type == type).size() \
-		+ Game.resources.filter(func(r): return r.kind == "farm" and r.team == TEAM and not r.dead).size() * int(type == "farm")
+	return Game.buildings.filter(func(b): return b.team == team and not b.dead and b.type == type).size() \
+		+ Game.resources.filter(func(r): return r.kind == "farm" and r.team == team and not r.dead).size() * int(type == "farm")
 
 
 ## Farms are needed once there is no wild food close to the Town Center.
@@ -139,8 +148,8 @@ func _needs_farm(tc: Building) -> bool:
 
 func _free_farm() -> ResourceNode:
 	for r in Game.resources:
-		if r.kind == "farm" and r.team == TEAM and not r.dead:
-			var busy := Game.units.any(func(u): return u.team == TEAM and u.resource_target == r)
+		if r.kind == "farm" and r.team == team and not r.dead:
+			var busy := Game.units.any(func(u): return u.team == team and u.resource_target == r)
 			if not busy:
 				return r
 	return null
@@ -158,7 +167,7 @@ func _try_build_near(type: String, villagers: Array, near: ResourceNode) -> void
 	if near == null:
 		return
 	var d: Dictionary = Game.BUILDING_DATA[type]
-	if not Game.can_afford(TEAM, d.cost):
+	if not Game.can_afford(team, d.cost):
 		return
 	var center := Game.map.world_to_cell(near.position)
 	for r in range(2, 7):
@@ -166,7 +175,7 @@ func _try_build_near(type: String, villagers: Array, near: ResourceNode) -> void
 			for x in range(center.x - r, center.x + r + 1):
 				var c := Vector2i(x, y)
 				if Game.map.is_area_free(c, d.size, 1):
-					var b := Game.place_building(TEAM, type, c)
+					var b := Game.place_building(team, type, c)
 					if b != null:
 						var v = _closest(villagers, b.position)
 						if v != null:
@@ -176,12 +185,12 @@ func _try_build_near(type: String, villagers: Array, near: ResourceNode) -> void
 
 func _try_build(type: String, villagers: Array, tc: Building) -> void:
 	var d: Dictionary = Game.BUILDING_DATA[type]
-	if not Game.can_afford(TEAM, d.cost):
+	if not Game.can_afford(team, d.cost):
 		return
 	var cell := _find_spot(tc, d.size)
 	if cell.x < 0:
 		return
-	var b := Game.place_building(TEAM, type, cell)
+	var b := Game.place_building(team, type, cell)
 	if b == null:
 		return
 	var v = _closest(villagers, b.position)
@@ -207,12 +216,12 @@ func _find_spot(tc: Building, size: Vector2i) -> Vector2i:
 
 
 func _train(tc: Building, villagers: Array, barracks: Array) -> void:
-	if tc.queue.is_empty() and villagers.size() < TARGET_VILLAGERS:
+	if tc.queue.is_empty() and villagers.size() < VILLAGER_GOAL[difficulty]:
 		tc.enqueue("villager")
 	if villagers.size() < 6:
 		return
 	# Walk the army mix and queue each unit at whichever building trains it.
-	var military := Game.buildings.filter(func(b): return b.team == TEAM and not b.dead and b.constructed \
+	var military := Game.buildings.filter(func(b): return b.team == team and not b.dead and b.constructed \
 		and b.type in ["barracks", "archery_range", "siege_workshop"])
 	for i in ARMY_MIX.size():
 		var want: String = ARMY_MIX[_mix_index % ARMY_MIX.size()]
@@ -234,9 +243,9 @@ func _defend(tc: Building, soldiers: Array) -> void:
 	var threat: Entity = null
 	var best := DEFENSE_RADIUS
 	for u in Game.units:
-		if u.team != TEAM and u.team != Game.GAIA and not u.dead:
+		if u.team != team and u.team != Game.GAIA and not u.dead:
 			for b in Game.buildings:
-				if b.team == TEAM and not b.dead:
+				if b.team == team and not b.dead:
 					var d: float = b.distance_to_edge(u.position)
 					if d < best:
 						best = d
@@ -249,25 +258,26 @@ func _defend(tc: Building, soldiers: Array) -> void:
 
 
 func _send_wave() -> void:
-	var army := Game.units.filter(func(u): return u.team == TEAM and not u.dead and not u.is_villager \
+	var army := Game.units.filter(func(u): return u.team == team and not u.dead and not u.is_villager \
 		and not u.is_monk and not u.attack_move)
 	if army.size() < 2 + waves_sent:
 		wave_timer = RETRY_DELAY
 		return
-	var target: Entity = Game.get_town_center(Game.PLAYER)
+	var target: Entity = Game.get_town_center(1 - team)
 	if target == null:
-		target = Game.find_nearest_enemy(TEAM, army[0].position, Game.FAR)
+		target = Game.find_nearest_enemy(team, army[0].position, Game.FAR)
 	if target == null:
 		return
 	# Waves start small and grow, so new players can hold the first one.
 	army.sort_custom(func(a, b): return a.position.distance_to(target.position) < b.position.distance_to(target.position))
-	army = army.slice(0, 4 + waves_sent * 3)
+	army = army.slice(0, WAVE_BASE[difficulty] + waves_sent * WAVE_GROWTH[difficulty])
 	for s in army:
 		s.command_attack(target, true)
 	waves_sent += 1
-	wave_timer = WAVE_INTERVAL
-	Game.notify.emit("Enemy attack wave %d incoming!" % waves_sent)
-	Sound.play("prepare_yourself")
+	wave_timer = WAVE_GAP[difficulty]
+	if 1 - team == Game.PLAYER and Game.mode != "demo":
+		Game.notify.emit("Enemy attack wave %d incoming!" % waves_sent)
+		Sound.play("prepare_yourself")
 
 
 func _closest(list: Array, pos: Vector2):

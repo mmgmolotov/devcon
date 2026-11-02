@@ -5,8 +5,12 @@ GODOT="${GODOT:-godot}"
 cd "$(dirname "$0")"
 "$GODOT" --headless --path . --import >/dev/null 2>&1
 LOG=$(mktemp)
-"$GODOT" --headless --fixed-fps 60 --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
-CODE=${PIPESTATUS[0]}
+CODE=0
+for MODE in "" "--survival" "--menu"; do
+	echo "=== smoke test ${MODE:-skirmish} ==="
+	"$GODOT" --headless --fixed-fps 60 --path . res://tests/smoke_test.tscn -- $MODE 2>&1 | tee -a "$LOG"
+	[ "${PIPESTATUS[0]}" -ne 0 ] && CODE=1
+done
 if grep -qE "SCRIPT ERROR|^ERROR" "$LOG"; then
 	echo "Engine/script errors detected in output"
 	CODE=1

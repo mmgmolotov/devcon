@@ -37,6 +37,8 @@ var _overlay_label: Label
 var _box: Control
 var _box_rect := Rect2()
 var _credits: PanelContainer
+var _pause: PanelContainer
+var _stats_label: Label
 var _refresh_t := 0.0
 var _portrait_key := ""
 var _build_page := 0
@@ -47,7 +49,8 @@ func _ready() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.theme = _make_theme()
+	_root.theme = UITheme.build(FONT_SIZE)
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_root)
 	_build_vignette()
 	_build_box_overlay()
@@ -58,6 +61,7 @@ func _ready() -> void:
 	_build_toast()
 	_build_game_over()
 	_build_credits()
+	_build_pause()
 	Game.selection_changed.connect(_rebuild_actions)
 	Game.resources_changed.connect(_refresh)
 	Game.notify.connect(show_toast)
@@ -85,6 +89,8 @@ func _process(delta: float) -> void:
 func is_point_over_ui(p: Vector2) -> bool:
 	if _overlay.visible:
 		return true
+	if _pause.visible:
+		return true
 	for c in [_top_bar, _bottom, _minimap, _placement, _credits]:
 		if c.visible and c.get_global_rect().has_point(p):
 			return true
@@ -108,44 +114,7 @@ func show_toast(text: String) -> void:
 # --- Theme -----------------------------------------------------------------------------------
 
 func _framed(bg: Color, border: Color, border_w: int, radius: int, margin: int) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(border_w)
-	sb.set_corner_radius_all(radius)
-	sb.set_content_margin_all(margin)
-	return sb
-
-
-func _make_theme() -> Theme:
-	var t := Theme.new()
-	t.default_font_size = FONT_SIZE
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Georgia", "Noto Serif", "DejaVu Serif", "Liberation Serif", "serif"])
-	font.font_weight = 600
-	t.default_font = font
-	var panel := _framed(WOOD_BG, GOLD, 3, 6, 8)
-	panel.shadow_color = Color(0, 0, 0, 0.45)
-	panel.shadow_size = 6
-	t.set_stylebox("panel", "PanelContainer", panel)
-	t.set_color("font_color", "Label", PARCHMENT)
-	t.set_color("font_outline_color", "Label", Color(0, 0, 0, 0.85))
-	t.set_constant("outline_size", "Label", 4)
-	t.set_stylebox("normal", "Button", _framed(Color(0.36, 0.24, 0.13), GOLD.darkened(0.15), 2, 8, 6))
-	t.set_stylebox("hover", "Button", _framed(Color(0.43, 0.29, 0.16), GOLD, 2, 8, 6))
-	t.set_stylebox("pressed", "Button", _framed(Color(0.55, 0.38, 0.17), Color(1.0, 0.85, 0.45), 3, 8, 6))
-	t.set_stylebox("disabled", "Button", _framed(Color(0.2, 0.16, 0.12), Color(0.4, 0.35, 0.3), 2, 8, 6))
-	var focus := StyleBoxEmpty.new()
-	t.set_stylebox("focus", "Button", focus)
-	t.set_color("font_color", "Button", PARCHMENT)
-	t.set_color("font_hover_color", "Button", Color(1, 0.97, 0.88))
-	t.set_color("font_pressed_color", "Button", Color(1, 0.95, 0.75))
-	t.set_color("font_disabled_color", "Button", Color(0.55, 0.5, 0.45))
-	t.set_color("font_outline_color", "Button", Color(0, 0, 0, 0.8))
-	t.set_constant("outline_size", "Button", 3)
-	t.set_stylebox("background", "ProgressBar", _framed(Color(0.08, 0.05, 0.03), GOLD.darkened(0.3), 1, 3, 0))
-	t.set_stylebox("fill", "ProgressBar", _framed(Color(0.3, 0.75, 0.3), Color(0, 0, 0, 0), 0, 3, 0))
-	return t
+	return UITheme.framed(bg, border, border_w, radius, margin)
 
 
 # --- Layout ------------------------------------------------------------------------------------
@@ -209,6 +178,7 @@ func _build_top_bar() -> void:
 	row.add_child(_icon_button("unit", "villager", "Idle", Vector2(118, 46), _select_idle_villager, true))
 	row.add_child(_icon_button("unit", "swordsman", "Army", Vector2(118, 46), _select_army, true))
 	row.add_child(_text_button("i", Vector2(46, 46), func(): _credits.visible = not _credits.visible))
+	row.add_child(_text_button("II", Vector2(52, 46), func(): set_paused(true)))
 
 
 func _build_minimap() -> void:
@@ -324,9 +294,15 @@ func _build_game_over() -> void:
 	_overlay_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_overlay_label.custom_minimum_size.x = 420
 	box.add_child(_overlay_label)
-	var again := _text_button("Play Again", Vector2(260, 84), func(): get_tree().reload_current_scene())
-	again.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.add_child(again)
+	_stats_label = Label.new()
+	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_stats_label)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 20)
+	box.add_child(row)
+	row.add_child(_text_button("Play Again", Vector2(240, 84), _restart))
+	row.add_child(_text_button("Main Menu", Vector2(240, 84), go_to_menu))
 
 
 func _build_credits() -> void:
@@ -362,6 +338,54 @@ func _build_credits() -> void:
 	var close := _text_button("Close", Vector2(160, 60), func(): _credits.visible = false)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(close)
+
+
+func _build_pause() -> void:
+	_pause = PanelContainer.new()
+	_pause.set_anchors_preset(Control.PRESET_CENTER)
+	_pause.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pause.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_pause.visible = false
+	_root.add_child(_pause)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_pause.add_child(box)
+	var title := UITheme.label("Paused", 40, UITheme.TITLE)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	for b in [["Resume", func(): set_paused(false)], ["Restart", _restart], ["Main Menu", go_to_menu]]:
+		var btn := _text_button(b[0], Vector2(340, 70), b[1])
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		box.add_child(btn)
+	box.add_child(UITheme.volume_slider("Music", true))
+	box.add_child(UITheme.volume_slider("Sound", false))
+
+
+func set_paused(on: bool) -> void:
+	if Game.is_over:
+		return
+	_pause.visible = on
+	get_tree().paused = on
+
+
+func _restart() -> void:
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func go_to_menu() -> void:
+	get_tree().paused = false
+	Sound.set_in_game(false)
+	get_tree().change_scene_to_file("res://ui/main_menu.tscn")
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if _credits.visible:
+			_credits.visible = false
+		elif not Game.is_over:
+			set_paused(not _pause.visible)
 
 
 # --- Widgets -----------------------------------------------------------------------------------
@@ -430,6 +454,8 @@ func _refresh() -> void:
 	_pop_label.modulate = Color(1, 0.5, 0.4) if pop >= cap else Color.WHITE
 	var t := int(Game.elapsed)
 	_time_label.text = "%d:%02d" % [t / 60, t % 60]
+	if Game.status_text != "":
+		_time_label.text += "   " + Game.status_text
 	_refresh_info()
 	for b in _actions.get_children():
 		if not b is Button:
@@ -591,7 +617,12 @@ func _on_placement_changed() -> void:
 
 func _on_game_over(winner: int) -> void:
 	Game.placement_ghost.cancel()
+	_pause.visible = false
 	_overlay.visible = true
+	var t := int(Game.elapsed)
+	var lost := Game.units.filter(func(u): return u.team == Game.PLAYER).size()
+	_stats_label.text = "%s  -  %s  -  Time %d:%02d  -  Army & villagers alive: %d" % [
+		Game.mode.capitalize(), ["Easy", "Normal", "Hard"][Game.difficulty], t / 60, t % 60, lost]
 	_overlay_label.text = "VICTORY!" if winner == Game.PLAYER else "DEFEAT"
 	_overlay_label.add_theme_color_override("font_color",
 		Color(1, 0.85, 0.35) if winner == Game.PLAYER else Color(1, 0.4, 0.35))
