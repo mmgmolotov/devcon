@@ -238,6 +238,20 @@ func _build_settings_panel() -> Control:
 	box.add_child(head)
 	box.add_child(UITheme.volume_slider("Music", true))
 	box.add_child(UITheme.volume_slider("Sound", false))
+	# Art pack status (optional user-supplied art, see docs/ART_PACKS.md).
+	var pack_label := UITheme.label(ArtPack.status_text(), 16)
+	pack_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pack_label.custom_minimum_size.x = 560
+	box.add_child(pack_label)
+	var hint := UITheme.label("Looks in: " + ", ".join(ArtPack.search_dirs()), 13, Color(1, 1, 1, 0.6))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = 560
+	box.add_child(hint)
+	var reload := UITheme.button("Reload art pack", Vector2(260, 56), func():
+		ArtPack.reload()
+		pack_label.text = ArtPack.status_text())
+	reload.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(reload)
 	var back := UITheme.button("Back", Vector2(220, 70), func(): _show(_main_panel))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(back)

@@ -137,6 +137,7 @@ godot-rts/
 ├── art/
 │   ├── units/             # Generated unit sprite sheets + sheets.json (frame layout)
 │   └── animals/           # Sheep, deer, boar sprites
+├── docs/ART_PACKS.md      # How to make/install an art pack
 ├── tools/
 │   ├── build_unit_sprites.py   # Rebuilds art/units from LPC layers (needs Pillow)
 │   └── build_animal_sprites.py # Rebuilds art/animals
@@ -177,6 +178,14 @@ checks: starting state, tap controls, training, construction, population cap, ga
 AI building a barracks, the AI sending a wave that reaches your base, victory by destroying
 the enemy Town Center, a clean restart, and defeat when you lose yours. It exits non-zero on
 any failed check or engine/script error.
+
+### Art packs (optional)
+
+You can replace units, buildings, resources and grass with your own images without
+touching code. Put a `pack.json` plus images in `artpack/` (git-ignored) and build your
+own APK, or drop the pack into the game's data folder on desktop. The main menu's
+**Settings** screen shows what loaded. Full format and instructions are in
+[docs/ART_PACKS.md](docs/ART_PACKS.md).
 
 ### Regenerating sprites (optional)
 

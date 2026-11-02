@@ -35,6 +35,9 @@ func _ready() -> void:
 	if args.has("--menu"):
 		_run_menu()
 		return
+	if args.has("--artpack"):
+		_run_artpack()
+		return
 	Game.mode = "skirmish"
 	Game.difficulty = 1
 	Game.random_map = false
@@ -101,6 +104,9 @@ func _give_player_orders() -> void:
 func _physics_process(_delta: float) -> void:
 	_frame += 1
 	var t := _frame / FPS
+	if _phase >= 300:
+		_artpack_tick(t)
+		return
 	if _phase >= 200:
 		_menu_tick(t)
 		return
@@ -236,6 +242,100 @@ func _menu_tick(t: float) -> void:
 		_main._start_game()
 		# Check before the fade finishes and the scene switches away from the test.
 		_check(Game.mode == "sandbox", "menu: START applies the chosen mode")
+		_finish_simple()
+
+
+# --- Art pack: a generated placeholder pack replaces units, buildings, trees -----
+
+const PACK_DIR := "user://artpack"
+
+
+func _make_test_pack() -> void:
+	DirAccess.make_dir_recursive_absolute(PACK_DIR + "/units")
+	DirAccess.make_dir_recursive_absolute(PACK_DIR + "/buildings")
+	DirAccess.make_dir_recursive_absolute(PACK_DIR + "/resources")
+	# Villager sheet: 32x48 frames, 5 directions (S, SW, W, NW, N) mirrored for the east side.
+	for team in ["blue", "red"]:
+		var img := Image.create(128, 48 * 15, false, Image.FORMAT_RGBA8)
+		var col := Color(0.2, 0.4, 1.0) if team == "blue" else Color(1.0, 0.3, 0.2)
+		for row in 15:
+			for f in 4:
+				img.fill_rect(Rect2i(f * 32 + 8, row * 48 + 8, 16, 36), col.lightened(f * 0.1))
+		img.save_png(PACK_DIR + "/units/villager_%s.png" % team)
+	var house := Image.create(80, 90, false, Image.FORMAT_RGBA8)
+	house.fill_rect(Rect2i(8, 30, 64, 50), Color(0.8, 0.7, 0.5))
+	house.fill_rect(Rect2i(4, 10, 72, 22), Color(0.6, 0.2, 0.1))
+	house.save_png(PACK_DIR + "/buildings/house.png")
+	for i in 2:
+		var tree := Image.create(40, 56, false, Image.FORMAT_RGBA8)
+		tree.fill_rect(Rect2i(16, 36, 8, 18), Color(0.4, 0.25, 0.1))
+		tree.fill_rect(Rect2i(4, 4 + i * 4, 32, 34), Color(0.1, 0.5 + i * 0.1, 0.15))
+		tree.save_png(PACK_DIR + "/resources/tree%d.png" % (i + 1))
+	var pack := {
+		"name": "Test Pack",
+		"units": {"villager": {
+			"image": "units/villager_{team}.png", "frame": [32, 48], "anchor": [16, 44], "scale": 0.9,
+			"directions": ["S", "SW", "W", "NW", "N"], "mirror": true,
+			"anims": {
+				"idle": {"y": 0, "frames": 1},
+				"walk": {"y": 0, "frames": 4},
+				"work": {"y": 240, "frames": 4},
+				"death": {"y": 480, "frames": 3}}}},
+		"buildings": {
+			"house": {"image": "buildings/house.png", "anchor": [40, 64]},
+			"barracks": {"image": "buildings/missing.png"}},
+		"resources": {"tree": {"images": ["resources/tree1.png", "resources/tree2.png"], "anchor": [20, 50]}},
+	}
+	var f := FileAccess.open(PACK_DIR + "/pack.json", FileAccess.WRITE)
+	f.store_string(JSON.stringify(pack, "  "))
+	f.close()
+
+
+func _remove_test_pack() -> void:
+	for sub in ["units", "buildings", "resources", ""]:
+		var dir: String = PACK_DIR + ("/" + sub if sub != "" else "")
+		for file in DirAccess.get_files_at(dir):
+			DirAccess.remove_absolute(dir + "/" + file)
+		DirAccess.remove_absolute(dir)
+	ArtPack.reload()
+
+
+func _run_artpack() -> void:
+	_make_test_pack()
+	ArtPack.reload()
+	_check(ArtPack.loaded and ArtPack.pack_name == "Test Pack", "artpack: pack.json found and loaded")
+	_check(ArtPack.overrides == 3, "artpack: 3 valid overrides (%d)" % ArtPack.overrides)
+	_check(ArtPack.errors.size() == 1 and ArtPack.errors[0].contains("barracks"), "artpack: broken entry reported, not fatal")
+	var anim := ArtPack.unit_anim("villager", "walk")
+	var east := ArtPack.unit_frame("villager", anim, Vector2.RIGHT, 2)
+	var south := ArtPack.unit_frame("villager", anim, Vector2.DOWN, 0)
+	_check(east.flip and east.region == Rect2(64, 96, 32, 48), "artpack: east is mirrored from west")
+	_check(not south.flip and south.region.position.y == 0.0, "artpack: south uses the first row")
+	_check(ArtPack.unit_anim("villager", "attack") == ArtPack.unit_def("villager").anims.walk, "artpack: missing attack falls back to walk")
+	Game.mode = "skirmish"
+	_main = load("res://main/main.tscn").instantiate()
+	add_child(_main)
+	var v = Game.units.filter(func(u): return u.type == "villager")[0]
+	_check(not v._pack.is_empty() and v._sprite.texture == ArtPack.unit_texture("villager", v.team), "artpack: villagers use the pack sheet")
+	_check(not Game.units.filter(func(u): return u.type == "sheep")[0]._pack, "artpack: units not in the pack keep built-in art")
+	var tc := Game.get_town_center(0)
+	var h := Game.place_building(0, "house", tc.cell + Vector2i(5, -4))
+	h.build_progress = 999.0
+	h.add_build_work(0.0)
+	v.command_gather(Game.find_nearest_resource("wood", v.position))
+	_phase = 300
+
+
+func _artpack_tick(t: float) -> void:
+	if _phase == 300 and t >= 25.0:
+		var v = Game.units.filter(func(u): return u.type == "villager")[0]
+		_check(v.state == Unit.State.GATHER or v.carry_amount > 0 or Game.players[0].wood > 200, "artpack: game plays normally with the pack")
+		v.take_damage(1e6)
+		_phase = 301
+	elif _phase == 301 and t >= 26.0:
+		_check(Game.decals.get_children().any(func(d): return d.kind == "sprite" and d.scale_factor == 0.9), "artpack: pack death frame left as a corpse")
+		_remove_test_pack()
+		_check(not ArtPack.loaded, "artpack: test pack cleaned up")
 		_finish_simple()
 
 

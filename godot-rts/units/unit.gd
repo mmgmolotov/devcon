@@ -65,6 +65,9 @@ var _wander_timer := 0.0
 var _hunting := false
 var _sprite: Sprite2D
 var _ground: GroundMark
+var _pack := {}             ## Art pack definition for this unit type (empty = built-in art).
+var _heading := Vector2.DOWN
+var _moving := false
 var _meta := {}
 
 
@@ -109,10 +112,11 @@ func _ready() -> void:
 	_ground.unit = self
 	_ground.show_behind_parent = true
 	add_child(_ground)
-	if is_machine:
+	_pack = ArtPack.unit_def(type)
+	if is_machine and _pack.is_empty():
 		return
 	_sprite = Sprite2D.new()
-	_sprite.texture = Game.unit_texture(type, team)
+	_sprite.texture = ArtPack.unit_texture(type, team) if not _pack.is_empty() else Game.unit_texture(type, team)
 	_sprite.centered = false
 	_sprite.region_enabled = true
 	_sprite.show_behind_parent = true
@@ -531,6 +535,7 @@ func _face(p: Vector2) -> void:
 func _set_dir(v: Vector2) -> void:
 	if v.length_squared() < 0.01:
 		return
+	_heading = v.normalized()
 	if absf(v.x) > absf(v.y) * 0.8:
 		_dir = DIR_RIGHT if v.x > 0.0 else DIR_LEFT
 	else:
@@ -558,6 +563,17 @@ func _on_damaged(attacker) -> void:
 
 func die() -> void:
 	if dead:
+		return
+	if not _pack.is_empty() and not is_animal:
+		var death := ArtPack.unit_anim(type, "death")
+		if not death.is_empty():
+			var fr := ArtPack.unit_frame(type, death, _heading, int(death.get("frames", 1)) - 1)
+			var s := float(_pack.get("scale", 1.0))
+			Game.spawn_decal("sprite", position, {"texture": _sprite.texture, "region": fr.region,
+				"offset": _sprite.offset * s + Vector2(0, 6), "scale": s, "flip": fr.flip})
+		Game.emit_fx("dust", position, 4)
+		Sound.play("death", position, -6.0)
+		super.die()
 		return
 	if is_machine:
 		Game.emit_fx("debris", position, 12)
@@ -605,7 +621,8 @@ func _animate(delta: float) -> void:
 	var moved := position.distance_squared_to(_last_pos) > 0.04
 	if not moved and state != State.MOVE and path_index >= path.size():
 		move_dir = Vector2.ZERO
-	if is_machine:
+	_moving = moved
+	if is_machine and _pack.is_empty():
 		if moved:
 			_set_dir(position - _last_pos)
 			_work_time += delta
@@ -651,6 +668,8 @@ func _animate(delta: float) -> void:
 
 ## Frame layout for an animation: {y, cell, frames, rows}.
 func _anim_info(anim: String) -> Dictionary:
+	if not _pack.is_empty():
+		return {"frames": int(ArtPack.unit_anim(type, _pack_anim_name(anim)).get("frames", 1))}
 	if is_animal:
 		match type:
 			"sheep":
@@ -661,6 +680,20 @@ func _anim_info(anim: String) -> Dictionary:
 				var row := 2 if state == State.MOVE and animal_mode == "flee" else (0 if anim == "walk" else 1)
 				return {"y": row * 48, "cell": 48, "frames": 5, "rows": 1}
 	return _meta.get(anim, _meta.get("walk", {"y": 0, "cell": 48, "frames": 1, "rows": 4}))
+
+
+## Maps a built-in animation name to the art pack's names.
+func _pack_anim_name(anim: String) -> String:
+	if anim.begins_with("work"):
+		return "work"
+	match anim:
+		"attack":
+			return "attack"
+		"hurt":
+			return "death"
+		"eat":
+			return "idle"
+	return "walk" if _moving else "idle"
 
 
 func _set_anim(anim: String, force := false) -> void:
@@ -682,6 +715,9 @@ func _set_frame(f: int) -> void:
 func _update_region() -> void:
 	if _sprite == null:
 		return
+	if not _pack.is_empty():
+		_update_pack_region()
+		return
 	var info := _anim_info(_anim)
 	var c: float = info.cell
 	var row := 0
@@ -697,12 +733,30 @@ func _update_region() -> void:
 	_sprite.offset = Vector2(-c * 0.5, 7.0 - feet)
 
 
+func _update_pack_region() -> void:
+	var anim := ArtPack.unit_anim(type, _pack_anim_name(_anim))
+	if anim.is_empty():
+		return
+	var fr := ArtPack.unit_frame(type, anim, _heading, _frame)
+	var region: Rect2 = fr.region
+	var s := float(_pack.get("scale", 1.0))
+	var a: Array = anim.get("anchor", _pack.get("anchor", [region.size.x * 0.5, region.size.y * 0.9]))
+	var ax := float(a[0])
+	if fr.flip:
+		ax = region.size.x - ax
+	_sprite.region_rect = region
+	_sprite.flip_h = fr.flip
+	_sprite.scale = Vector2(s, s)
+	_sprite.position = Vector2(0, 6)
+	_sprite.offset = -Vector2(ax, float(a[1]))
+
+
 # --- Drawing ---------------------------------------------------------------------
 
 func _draw() -> void:
 	if _ground != null:
 		_ground.queue_redraw()
-	if is_machine:
+	if is_machine and _pack.is_empty():
 		var phase := clampf(1.0 - attack_timer / cooldown, 0.0, 1.0) if _working else -1.0
 		Art.draw_machine(self, data.machine, Game.TEAM_COLORS[team], facing, _work_time * 6.0, phase)
 		if selected or hp < max_hp:

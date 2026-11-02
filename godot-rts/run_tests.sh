@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 "$GODOT" --headless --path . --import >/dev/null 2>&1
 LOG=$(mktemp)
 CODE=0
-for MODE in "" "--survival" "--menu"; do
+for MODE in "" "--survival" "--menu" "--artpack"; do
 	echo "=== smoke test ${MODE:-skirmish} ==="
 	"$GODOT" --headless --fixed-fps 60 --path . res://tests/smoke_test.tscn -- $MODE 2>&1 | tee -a "$LOG"
 	[ "${PIPESTATUS[0]}" -ne 0 ] && CODE=1

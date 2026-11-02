@@ -223,8 +223,10 @@ func _build_ground() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://map/ground.gdshader")
 	mat.set_shader_parameter("noise_tex", noise_tex)
-	mat.set_shader_parameter("grass_tex", preload("res://art/terrain/grass.png"))
-	mat.set_shader_parameter("dry_tex", preload("res://art/terrain/dry_grass.png"))
+	var grass := ArtPack.terrain_texture("grass")
+	var dry := ArtPack.terrain_texture("dry_grass")
+	mat.set_shader_parameter("grass_tex", grass if grass != null else preload("res://art/terrain/grass.png"))
+	mat.set_shader_parameter("dry_tex", dry if dry != null else (grass if grass != null else preload("res://art/terrain/dry_grass.png")))
 	mat.set_shader_parameter("map_px", get_world_size())
 	var s := Sprite2D.new()
 	s.name = "Ground"

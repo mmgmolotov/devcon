@@ -102,6 +102,12 @@ func deplete() -> void:
 
 
 func _draw() -> void:
+	var pdef := ArtPack.resource_def(kind)
+	if not pdef.is_empty():
+		var tex := ArtPack.resource_texture(kind, _seed)
+		if tex != null:
+			ArtPack.draw_image(self, tex, pdef)
+			return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _seed
 	match kind:

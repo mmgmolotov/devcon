@@ -10,6 +10,8 @@ var size := Vector2(64, 64)
 var texture: Texture2D
 var region := Rect2()
 var offset := Vector2.ZERO
+var scale_factor := 1.0
+var flip := false
 var _age := 0.0
 
 
@@ -36,7 +38,11 @@ func _draw() -> void:
 		"sprite":
 			if texture != null:
 				Art.shadow(self, Vector2(0, 5), 12.0, 4.0, 0.2)
-				draw_texture_rect_region(texture, Rect2(offset, region.size), region, Color(0.85, 0.8, 0.8))
+				var size := region.size * scale_factor
+				var dst := Rect2(offset, size)
+				if flip:  # a negative width mirrors the image
+					dst = Rect2(offset + Vector2(size.x, 0), Vector2(-size.x, size.y))
+				draw_texture_rect_region(texture, dst, region, Color(0.85, 0.8, 0.8))
 		"rubble":
 			Art.draw_rubble(self, size, get_instance_id())
 		"stump":

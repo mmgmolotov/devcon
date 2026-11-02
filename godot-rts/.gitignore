@@ -10,3 +10,5 @@ export_credentials.cfg
 tools/.lpc_cache/
 tools/.animal_cache/
 __pycache__/
+# Personal art packs (may contain art you are not allowed to share)
+artpack/

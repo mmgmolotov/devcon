@@ -31,6 +31,14 @@ func _draw() -> void:
 	var c := size * 0.5
 	match kind:
 		"unit":
+			var pdef := ArtPack.unit_def(type)
+			if not pdef.is_empty():
+				var anim := ArtPack.unit_anim(type, "idle")
+				var fr := ArtPack.unit_frame(type, anim, Vector2.DOWN, 0)
+				var src: Rect2 = fr.region
+				var pk := s / maxf(src.size.x, src.size.y) * 1.1
+				draw_texture_rect_region(ArtPack.unit_texture(type, team), Rect2(c - src.size * pk * 0.5, src.size * pk), src)
+				return
 			if Game.UNIT_DATA[type].has("machine"):
 				var mk := s / 64.0
 				draw_set_transform(c + Vector2(0, 14.0 * mk), 0.0, Vector2(mk, mk))
@@ -54,6 +62,12 @@ func _draw() -> void:
 			Art.shadow(self, c + Vector2(0, s * 0.4), s * 0.25, s * 0.08)
 			draw_texture_rect_region(tex, dst, src)
 		"building":
+			var bdef := ArtPack.building_def(type)
+			var btex := ArtPack.building_texture(type, team, true) if not bdef.is_empty() else null
+			if btex != null:
+				var bs := s / maxf(btex.get_width(), btex.get_height())
+				draw_texture_rect(btex, Rect2(c - btex.get_size() * bs * 0.5, btex.get_size() * bs), false)
+				return
 			var fs := Vector2(Game.BUILDING_DATA[type].size) * Game.TILE
 			var up: float = Art.WALL_HEIGHT.get(type, 22.0) + 22.0
 			var k := s / maxf(fs.x + 16.0, fs.y + up)

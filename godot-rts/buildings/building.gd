@@ -45,7 +45,7 @@ class Sails extends Node2D:
 
 func _ready() -> void:
 	Game.register_building(self)
-	if type == "mill":
+	if type == "mill" and ArtPack.building_def(type).is_empty():
 		_sails = Sails.new()
 		_sails.position = Vector2(0, -Vector2(size).y * Game.TILE * 0.5 + 3.0 - Art.WALL_HEIGHT.mill + 2.0)
 		_sails.visible = constructed
@@ -265,7 +265,12 @@ func _draw() -> void:
 	if selected:
 		Art.ellipse_outline(self, Vector2.ZERO, half.x + 6.0, half.y + 4.0, Color(0.45, 1.0, 0.45), 2.0)
 	var progress: float = 1.0 if constructed else build_progress / data.build_time
-	Art.draw_building(self, type, col, s, progress, _sails != null)
+	var pdef := ArtPack.building_def(type)
+	var ptex := ArtPack.building_texture(type, team, constructed) if not pdef.is_empty() else null
+	if ptex != null:
+		ArtPack.draw_image(self, ptex, pdef, Vector2.ZERO, Color(1, 1, 1, 1.0 if constructed else 0.75))
+	else:
+		Art.draw_building(self, type, col, s, progress, _sails != null)
 	if selected and has_rally and team == Game.PLAYER:
 		var rp := rally_point - position
 		draw_dashed_line(Vector2.ZERO, rp, Color(1, 1, 1, 0.7), 2.0, 8.0)

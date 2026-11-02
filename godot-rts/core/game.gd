@@ -365,7 +365,7 @@ func spawn_decal(kind: String, pos: Vector2, props := {}) -> void:
 	d.position = pos
 	d.set("kind", kind)
 	for k in props:
-		d.set(k, props[k])
+		d.set("scale_factor" if k == "scale" else k, props[k])
 	decals.add_child(d)
 
 
