@@ -39,6 +39,16 @@ var carry_type := ""
 var carry_amount := 0
 var gather_timer := 0.0
 
+# Animation (drawing is throttled to ANIM_FPS while something moves).
+const ANIM_FPS := 15.0
+var walk_phase := 0.0
+var _working := false
+var _work_time := 0.0
+var _last_pos := Vector2.ZERO
+var _anim_accum := 0.0
+var _was_animated := false
+var _dust_timer := 0.0
+
 
 func setup(unit_type: String, unit_team: int) -> void:
 	type = unit_type
@@ -59,6 +69,7 @@ func setup(unit_type: String, unit_team: int) -> void:
 
 func _ready() -> void:
 	Game.register_unit(self)
+	_last_pos = position
 
 
 func get_display_name() -> String:
@@ -158,10 +169,8 @@ func _physics_process(delta: float) -> void:
 	if dead or Game.is_over:
 		return
 	attack_timer = maxf(attack_timer - delta, 0.0)
-	if flash_timer > 0.0:
-		flash_timer -= delta
-		if flash_timer <= 0.0:
-			queue_redraw()
+	flash_timer = maxf(flash_timer - delta, 0.0)
+	_working = false
 	match state:
 		State.IDLE:
 			_process_idle(delta)
@@ -176,6 +185,62 @@ func _physics_process(delta: float) -> void:
 			_process_return(delta)
 		State.BUILD:
 			_process_build(delta)
+	_animate(delta)
+
+
+func _animate(delta: float) -> void:
+	var moved := position.distance_squared_to(_last_pos) > 0.04
+	if moved:
+		walk_phase += delta * speed * 0.17
+	elif not _working:
+		walk_phase = 0.0
+	_last_pos = position
+	if _working:
+		_work_time += delta
+	var animated := moved or _working
+	if animated:
+		_anim_accum += delta
+		if _anim_accum >= 1.0 / ANIM_FPS:
+			_anim_accum = 0.0
+			queue_redraw()
+	elif _was_animated:
+		queue_redraw()
+	_was_animated = animated
+
+
+## Tool swing phase 0..1 (strike at 1) for the current activity, or -1.
+func _work_phase() -> float:
+	if not _working:
+		return -1.0
+	match state:
+		State.ATTACK:
+			return clampf(1.0 - attack_timer / cooldown, 0.0, 1.0)
+		State.GATHER:
+			return clampf(gather_timer * Game.GATHER_RATES.get(resource_type, 1.0), 0.0, 1.0)
+		State.BUILD:
+			return fmod(_work_time * 1.6, 1.0)
+	return -1.0
+
+
+func _tool() -> String:
+	match type:
+		"swordsman":
+			return "sword"
+		"archer":
+			return "bow"
+	if state == State.BUILD:
+		return "hammer"
+	var r := resource_type if resource_type != "" else carry_type
+	if r == "wood":
+		return "axe"
+	if r == "gold" or r == "stone":
+		return "pick"
+	return ""
+
+
+func _face(p: Vector2) -> void:
+	if absf(p.x - position.x) > 1.0:
+		facing = signf(p.x - position.x)
 
 
 func _process_idle(delta: float) -> void:
@@ -214,6 +279,8 @@ func _process_attack(delta: float) -> void:
 				target = e
 				_clear_path()
 	if _approach(target, attack_range, delta):
+		_working = true
+		_face(target.position)
 		if attack_timer <= 0.0:
 			attack_timer = cooldown
 			_strike(target)
@@ -229,6 +296,7 @@ func _strike(t: Entity) -> void:
 	if ranged:
 		Game.spawn_projectile(self, t, dmg)
 	else:
+		Game.emit_fx("clang" if t is Unit else "dust", t.nearest_point_to(position) + Vector2(0, -8), 4)
 		t.take_damage(dmg, self)
 
 
@@ -246,6 +314,8 @@ func _process_gather(delta: float) -> void:
 				state = State.IDLE
 			return
 	if _approach(resource_target, WORK_RANGE, delta):
+		_working = true
+		_face(resource_target.position)
 		gather_timer += delta
 		var interval: float = 1.0 / Game.GATHER_RATES[resource_type]
 		if gather_timer >= interval:
@@ -253,8 +323,8 @@ func _process_gather(delta: float) -> void:
 			if carry_type != resource_target.type:
 				carry_amount = 0
 				carry_type = resource_target.type
+			Game.emit_fx(resource_target.type, resource_target.position + Vector2(0, -6), 3)
 			carry_amount += resource_target.harvest(1)
-			flash_timer = 0.08
 			queue_redraw()
 
 
@@ -288,7 +358,13 @@ func _process_build(delta: float) -> void:
 			state = State.GATHER if resource_type != "" else State.IDLE
 		return
 	if _approach(target, WORK_RANGE, delta):
+		_working = true
+		_face(target.position)
 		target.add_build_work(delta)
+		_dust_timer -= delta
+		if _dust_timer <= 0.0:
+			_dust_timer = 0.6
+			Game.emit_fx("dust", target.nearest_point_to(position), 2)
 
 
 # --- Movement --------------------------------------------------------------------
@@ -347,36 +423,22 @@ func _on_damaged(attacker) -> void:
 
 # --- Drawing ---------------------------------------------------------------------
 
+func die() -> void:
+	if dead:
+		return
+	Game.spawn_decal("corpse", position, {"team_color": Game.TEAM_COLORS[team], "unit_type": type, "facing": facing})
+	Game.emit_fx("dust", position, 4)
+	super.die()
+
+
 func _draw() -> void:
 	var col: Color = Game.TEAM_COLORS[team]
-	var outline := col.darkened(0.55)
-	draw_set_transform(Vector2(0, radius * 0.7), 0.0, Vector2(1.0, 0.45))
-	draw_circle(Vector2.ZERO, radius + 1.0, Color(0, 0, 0, 0.28))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	Art.shadow(self, Vector2(0, 7), radius * 0.95, radius * 0.42)
 	if selected:
-		draw_arc(Vector2(0, 2), radius + 5.0, 0.0, TAU, 28, Color(0.45, 1.0, 0.45), 2.0)
-	match type:
-		"villager":
-			draw_circle(Vector2.ZERO, radius, outline)
-			draw_circle(Vector2.ZERO, radius - 2.0, col)
-			draw_circle(Vector2(0, -2), 3.5, Color(0.96, 0.8, 0.62))
-			if carry_amount > 0:
-				draw_rect(Rect2(3, -1, 7, 7), Game.RESOURCE_COLORS[carry_type])
-				draw_rect(Rect2(3, -1, 7, 7), Color(0, 0, 0, 0.6), false, 1.0)
-		"swordsman":
-			var r := Rect2(-radius, -radius, radius * 2.0, radius * 2.0)
-			draw_rect(r, outline)
-			draw_rect(r.grow(-2.0), col)
-			draw_rect(Rect2(-4, -5, 8, 6), Color(0.75, 0.75, 0.8))
-			draw_line(Vector2(6 * facing, 4), Vector2(15 * facing, -9), Color(0.85, 0.85, 0.9), 2.5)
-			draw_line(Vector2(4 * facing, -1), Vector2(9 * facing, 3), Color(0.45, 0.3, 0.15), 2.0)
-		"archer":
-			var pts := PackedVector2Array([Vector2(0, -radius - 2), Vector2(radius + 1, radius), Vector2(-radius - 1, radius)])
-			draw_colored_polygon(pts, outline)
-			var inner := PackedVector2Array([Vector2(0, -radius + 2), Vector2(radius - 2, radius - 2), Vector2(-radius + 2, radius - 2)])
-			draw_colored_polygon(inner, col)
-			draw_arc(Vector2(5 * facing, 0), 9.0, -1.2 + (0.0 if facing > 0 else PI), 1.2 + (0.0 if facing > 0 else PI), 10, Color(0.5, 0.32, 0.12), 2.0)
-	if flash_timer > 0.0:
-		draw_circle(Vector2.ZERO, radius + 2.0, Color(1, 1, 1, 0.3))
+		Art.ellipse_outline(self, Vector2(0, 7), radius + 5.0, (radius + 5.0) * 0.5, Color(0.45, 1.0, 0.45), 2.0)
+	var carry := carry_type if carry_amount > 0 else ""
+	draw_set_transform(Vector2(0, 7), 0.0, Vector2.ONE)
+	Art.draw_person(self, type, col, facing, walk_phase, _work_phase(), _tool(), carry)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if selected or hp < max_hp:
-		draw_health_bar(22.0, -radius - 10.0)
+		draw_health_bar(22.0, -radius - 20.0)

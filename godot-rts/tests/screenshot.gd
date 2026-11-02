@@ -9,6 +9,7 @@ var run_time := 20.0
 var _t := 0.0
 var _done := false
 var _focus := ""
+var _zoom := 0.0
 
 
 func _ready() -> void:
@@ -20,6 +21,8 @@ func _ready() -> void:
 		elif a.begins_with("--speed="):
 			Engine.max_physics_steps_per_frame = 64
 			Engine.time_scale = float(a.substr(8))
+		elif a.begins_with("--zoom="):
+			_zoom = float(a.substr(7))
 		elif a.begins_with("--focus="):
 			_focus = a.substr(8)
 	add_child(load("res://main/main.tscn").instantiate())
@@ -35,6 +38,9 @@ func _ready() -> void:
 	var b := Game.place_building(Game.PLAYER, "house", Game.map.start_cells[0] + Vector2i(5, -3))
 	vills[2].command_build(b)
 	Game.set_selection([vills[0], vills[1]])
+	if _zoom > 0.0:
+		Game.camera.zoom = Vector2(_zoom, _zoom)
+		Game.camera.center_on(tc.position + Vector2(120, -40))
 
 
 func _process(delta: float) -> void:

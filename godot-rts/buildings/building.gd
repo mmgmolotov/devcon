@@ -18,6 +18,7 @@ var train_timer := 0.0
 var rally_point := Vector2.ZERO
 var has_rally := false
 var attack_timer := 0.0
+var _fx_timer := 0.0
 
 
 func setup(building_type: String, building_team: int, at_cell: Vector2i, complete: bool) -> void:
@@ -44,6 +45,13 @@ func get_display_name() -> String:
 func get_rect() -> Rect2:
 	var s := Vector2(size) * Game.TILE
 	return Rect2(position - s * 0.5, s)
+
+
+## Footprint plus the part of the art that rises above it (for tapping).
+func get_visual_rect() -> Rect2:
+	var r := get_rect()
+	var up: float = Art.WALL_HEIGHT.get(type, 22.0) + 18.0
+	return Rect2(r.position - Vector2(0, up), r.size + Vector2(0, up))
 
 
 func get_radius() -> float:
@@ -133,6 +141,10 @@ func set_rally(p: Vector2) -> void:
 func _physics_process(delta: float) -> void:
 	if dead or not constructed or Game.is_over:
 		return
+	_fx_timer -= delta
+	if _fx_timer <= 0.0:
+		_fx_timer = 0.18
+		_emit_ambient()
 	if not queue.is_empty():
 		train_timer += delta
 		if train_timer >= Game.UNIT_DATA[queue[0]].time:
@@ -168,9 +180,32 @@ func _spawn(unit_type: String) -> void:
 			u.command_move(rally_point)
 
 
+## Chimney smoke, and fire/smoke on damaged buildings.
+func _emit_ambient() -> void:
+	if not visible:
+		return
+	var s := Vector2(size) * Game.TILE
+	var top := position + Vector2(0, -s.y * 0.5 - Art.WALL_HEIGHT.get(type, 22.0) * 0.5)
+	var f := hp / max_hp
+	if f < 0.66:
+		var spots := 1 if f > 0.33 else 3
+		for i in spots:
+			var p := top + Vector2(randf_range(-0.35, 0.35) * s.x, randf_range(-0.2, 0.4) * s.y)
+			Game.emit_fx("fire", p, 2)
+			if randf() < 0.4:
+				Game.emit_fx("smoke", p + Vector2(0, -10), 1)
+	var chimney := Art.chimney_offset(type, s)
+	if chimney.x < INF and randf() < 0.35:
+		Game.emit_fx("smoke", position + chimney, 1)
+
+
 func die() -> void:
 	if dead:
 		return
+	var s := Vector2(size) * Game.TILE
+	Game.spawn_decal("rubble", position, {"size": s, "life": 30.0})
+	Game.emit_fx("debris", position, 18)
+	Game.emit_fx("dust", position, 14)
 	Game.map.free_area(cell, size)
 	queue.clear()
 	super.die()
@@ -179,72 +214,28 @@ func die() -> void:
 # --- Drawing ---------------------------------------------------------------------
 
 func _draw() -> void:
-	var half := Vector2(size) * Game.TILE * 0.5
-	var r := Rect2(-half + Vector2(3, 3), half * 2.0 - Vector2(6, 6))
+	var s := Vector2(size) * Game.TILE
+	var half := s * 0.5
 	var col: Color = Game.TEAM_COLORS[team]
-	var wall := Color(0.8, 0.7, 0.52)
-	var dark := Color(0.2, 0.17, 0.14)
-	if not constructed:
-		_draw_foundation(r, col, dark)
-	else:
-		draw_rect(Rect2(r.position + Vector2(5, 6), r.size), Color(0, 0, 0, 0.25))
-		match type:
-			"town_center":
-				draw_rect(r, dark)
-				draw_rect(r.grow(-2), wall)
-				var inner := r.grow(-14)
-				draw_rect(inner, dark)
-				draw_rect(inner.grow(-2), col)
-				draw_rect(Rect2(-9, -9, 18, 18), col.darkened(0.35))
-				draw_rect(Rect2(-5, 6, 10, 14), Color(0.35, 0.22, 0.1))
-				draw_line(Vector2(-half.x + 10, -half.y + 10), Vector2(-half.x + 10, -half.y - 14), dark, 2.0)
-				draw_colored_polygon(PackedVector2Array([
-					Vector2(-half.x + 11, -half.y - 14), Vector2(-half.x + 27, -half.y - 9), Vector2(-half.x + 11, -half.y - 4)]), col)
-			"house":
-				draw_rect(r, dark)
-				draw_rect(r.grow(-2), wall)
-				draw_colored_polygon(PackedVector2Array([
-					r.position + Vector2(-3, r.size.y * 0.5), Vector2(0, r.position.y - 6),
-					Vector2(r.end.x + 3, r.position.y + r.size.y * 0.5)]), col.darkened(0.15))
-				draw_rect(Rect2(-5, r.end.y - 16, 10, 14), Color(0.35, 0.22, 0.1))
-			"barracks":
-				draw_rect(r, dark)
-				draw_rect(r.grow(-2), wall.darkened(0.15))
-				draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(r.size.x - 4, 16)), col.darkened(0.1))
-				draw_line(Vector2(-14, -4), Vector2(14, 24), Color(0.85, 0.85, 0.9), 4.0)
-				draw_line(Vector2(14, -4), Vector2(-14, 24), Color(0.85, 0.85, 0.9), 4.0)
-				draw_line(Vector2(-16, 22), Vector2(-10, 26), Color(0.45, 0.3, 0.15), 4.0)
-				draw_line(Vector2(16, 22), Vector2(10, 26), Color(0.45, 0.3, 0.15), 4.0)
+	var wall_h: float = Art.WALL_HEIGHT.get(type, 22.0)
 	if selected:
-		draw_rect(r.grow(3), Color(0.45, 1.0, 0.45), false, 2.0)
-		if has_rally and team == Game.PLAYER:
-			var rp := rally_point - position
-			draw_dashed_line(Vector2.ZERO, rp, Color(1, 1, 1, 0.7), 2.0, 8.0)
-			draw_line(rp, rp + Vector2(0, -18), dark, 2.0)
-			draw_colored_polygon(PackedVector2Array([rp + Vector2(0, -18), rp + Vector2(12, -14), rp + Vector2(0, -10)]), col)
-	var bar_w := r.size.x * 0.8
+		Art.ellipse_outline(self, Vector2.ZERO, half.x + 6.0, half.y + 4.0, Color(0.45, 1.0, 0.45), 2.0)
+	var progress: float = 1.0 if constructed else build_progress / data.build_time
+	Art.draw_building(self, type, col, s, progress)
+	if selected and has_rally and team == Game.PLAYER:
+		var rp := rally_point - position
+		draw_dashed_line(Vector2.ZERO, rp, Color(1, 1, 1, 0.7), 2.0, 8.0)
+		Art.flag(self, rp, 18.0, col)
+	var top_y := -half.y - wall_h - 22.0
+	var bar_w := s.x * 0.7
 	if selected or hp < max_hp or not constructed:
-		draw_health_bar(bar_w, -half.y - 10.0)
+		draw_health_bar(bar_w, top_y)
 	var prog := -1.0
 	if not constructed:
-		prog = build_progress / data.build_time
+		prog = progress
 	elif not queue.is_empty():
 		prog = train_timer / Game.UNIT_DATA[queue[0]].time
 	if prog >= 0.0:
-		var pr := Rect2(-bar_w * 0.5, half.y - 12.0, bar_w, 5.0)
+		var pr := Rect2(-bar_w * 0.5, top_y + 7.0, bar_w, 4.0)
 		draw_rect(pr.grow(1), Color(0, 0, 0, 0.7))
-		draw_rect(Rect2(pr.position, Vector2(bar_w * clampf(prog, 0.0, 1.0), 5.0)), Color(0.35, 0.75, 1.0))
-
-
-func _draw_foundation(r: Rect2, col: Color, dark: Color) -> void:
-	var f := clampf(build_progress / data.build_time, 0.0, 1.0)
-	draw_rect(r, Color(0.55, 0.45, 0.3, 0.55))
-	draw_rect(r, dark, false, 2.0)
-	var h := r.size.y * f
-	draw_rect(Rect2(r.position.x, r.end.y - h, r.size.x, h), Color(0.8, 0.7, 0.52, 0.85))
-	var step := 16.0
-	var x := r.position.x
-	while x < r.end.x:
-		draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), Color(0.4, 0.28, 0.14, 0.8), 2.0)
-		x += step
-	draw_rect(Rect2(r.position, Vector2(r.size.x, 6)), col)
+		draw_rect(Rect2(pr.position, Vector2(bar_w * clampf(prog, 0.0, 1.0), 4.0)), Color(0.35, 0.75, 1.0))

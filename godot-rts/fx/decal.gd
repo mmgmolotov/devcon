@@ -1,0 +1,36 @@
+extends Node2D
+## Ground decal that slowly fades: fallen unit, building rubble or tree stump.
+
+var kind := "corpse"
+var life := 12.0
+var team_color := Color.WHITE
+var unit_type := "villager"
+var facing := 1.0
+var size := Vector2(64, 64)
+var _age := 0.0
+
+
+func _ready() -> void:
+	set_process(life > 0.0)
+
+
+func _process(delta: float) -> void:
+	_age += delta
+	var fade_start := life * 0.6
+	if _age > fade_start:
+		modulate.a = clampf(1.0 - (_age - fade_start) / (life - fade_start), 0.0, 1.0)
+	if _age >= life:
+		queue_free()
+
+
+func _draw() -> void:
+	match kind:
+		"corpse":
+			Art.shadow(self, Vector2(0, 2), 12.0, 4.0, 0.25)
+			draw_set_transform(Vector2(-10.0 * facing, 2), facing * PI * 0.5, Vector2.ONE)
+			Art.draw_person(self, unit_type, team_color.darkened(0.35), facing, 0.0, -1.0, "", "")
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		"rubble":
+			Art.draw_rubble(self, size, get_instance_id())
+		"stump":
+			Art.draw_stump(self)

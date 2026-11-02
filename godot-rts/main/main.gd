@@ -7,6 +7,8 @@ const START_VILLAGERS := 3
 @onready var game_map: GameMap = $GameMap
 @onready var entities: Node2D = $Entities
 @onready var effects: Node2D = $Effects
+@onready var decals: Node2D = $Decals
+@onready var overlay: Node2D = $Overlay
 @onready var camera: RTSCamera = $Camera
 
 
@@ -20,6 +22,8 @@ func _ready() -> void:
 	Game.map = game_map
 	Game.entities = entities
 	Game.effects = effects
+	Game.decals = decals
+	Game.overlay = overlay
 	game_map.generate(MAP_SEED)
 	for team in 2:
 		_spawn_base(team)

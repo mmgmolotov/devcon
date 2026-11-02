@@ -11,7 +11,6 @@ var valid := false
 
 func _ready() -> void:
 	Game.placement_ghost = self
-	z_index = 5
 
 
 func is_active() -> bool:
@@ -27,6 +26,7 @@ func begin(building_type: String, world_pos: Vector2) -> void:
 func set_target(world_pos: Vector2) -> void:
 	cell = Game.map.world_to_cell(world_pos) - size / 2
 	valid = Game.map.is_area_free(cell, size)
+	modulate = Color(1, 1, 1, 0.75) if valid else Color(1, 0.55, 0.55, 0.75)
 	queue_redraw()
 	changed.emit()
 
@@ -63,8 +63,11 @@ func _draw() -> void:
 		return
 	var r := Rect2(Game.map.cell_to_world(cell), Vector2(size) * Game.TILE)
 	var c := Color(0.3, 1.0, 0.4) if valid else Color(1.0, 0.3, 0.25)
-	draw_rect(r, Color(c, 0.35))
-	draw_rect(r, c, false, 3.0)
+	draw_rect(r, Color(c, 0.3))
 	for x in size.x:
 		for y in size.y:
-			draw_rect(Rect2(r.position + Vector2(x, y) * Game.TILE, Vector2(Game.TILE, Game.TILE)), Color(c, 0.5), false, 1.0)
+			draw_rect(Rect2(r.position + Vector2(x, y) * Game.TILE, Vector2(Game.TILE, Game.TILE)), Color(c, 0.6), false, 1.0)
+	draw_set_transform(r.get_center(), 0.0, Vector2.ONE)
+	Art.draw_building(self, type, Game.TEAM_COLORS[Game.PLAYER], r.size)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_rect(r, c, false, 3.0)

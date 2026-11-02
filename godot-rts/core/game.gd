@@ -77,6 +77,10 @@ var selected: Array = []
 var map: GameMap
 var entities: Node2D
 var effects: Node2D
+var decals: Node2D
+var overlay: Node2D
+var fx: FX
+var fog: Node2D
 var camera: RTSCamera
 var placement_ghost: Node2D
 
@@ -88,6 +92,7 @@ var _unit_scene: PackedScene
 var _building_scene: PackedScene
 var _projectile_scene: PackedScene
 var _marker_script: Script
+var _decal_script: Script
 
 
 func _ready() -> void:
@@ -95,6 +100,7 @@ func _ready() -> void:
 	_building_scene = load("res://buildings/building.tscn")
 	_projectile_scene = load("res://units/projectile.tscn")
 	_marker_script = load("res://ui/tap_marker.gd")
+	_decal_script = load("res://fx/decal.gd")
 	reset()
 
 
@@ -110,6 +116,8 @@ func reset() -> void:
 	is_over = false
 	winner = -1
 	elapsed = 0.0
+	fx = null
+	fog = null
 
 
 func _physics_process(delta: float) -> void:
@@ -224,13 +232,39 @@ func spawn_projectile(attacker: Entity, target: Entity, damage: float) -> void:
 
 
 func spawn_marker(pos: Vector2, color: Color) -> void:
-	if effects == null:
+	var parent := overlay if overlay != null else effects
+	if parent == null:
 		return
 	var m := Node2D.new()
 	m.set_script(_marker_script)
 	m.position = pos
 	m.set("color", color)
-	effects.add_child(m)
+	parent.add_child(m)
+
+
+## Adds a ground decal (corpse, rubble or stump). props are set on the node.
+func spawn_decal(kind: String, pos: Vector2, props := {}) -> void:
+	if decals == null:
+		return
+	var d := Node2D.new()
+	d.set_script(_decal_script)
+	d.position = pos
+	d.set("kind", kind)
+	for k in props:
+		d.set(k, props[k])
+	decals.add_child(d)
+
+
+func emit_fx(kind: String, pos: Vector2, count := 4) -> void:
+	if fx != null:
+		fx.emit(kind, pos, count)
+
+
+## True if a world position is inside (or near) the camera view.
+func on_screen(pos: Vector2, margin := 0.0) -> bool:
+	if camera == null:
+		return true
+	return camera.visible_world_rect().grow(margin).has_point(pos)
 
 
 # --- Registry ----------------------------------------------------------------
@@ -333,23 +367,27 @@ func pick_at(pos: Vector2, radius: float) -> Node2D:
 	var best: Node2D = null
 	var best_d := radius
 	for u in units:
-		if u.dead:
+		if u.dead or not u.visible:
 			continue
-		var d: float = u.position.distance_to(pos) - u.radius
+		# Units are drawn standing up, so accept taps on the body as well as the feet.
+		var d: float = minf(u.position.distance_to(pos), (u.position + Vector2(0, -12)).distance_to(pos)) - u.radius
 		if d < best_d:
 			best_d = d
 			best = u
 	if best != null:
 		return best
+	for b in buildings:
+		if not b.dead and b.visible and b.get_visual_rect().has_point(pos):
+			return b
 	var c := map.world_to_cell(pos)
 	var occ = map.occupancy.get(c)
-	if occ != null:
+	if occ != null and occ.visible:
 		return occ
 	best_d = radius + TILE * 0.5
 	for dy in range(-1, 2):
 		for dx in range(-1, 2):
 			var o = map.occupancy.get(c + Vector2i(dx, dy))
-			if o != null:
+			if o != null and o.visible:
 				var d: float = o.distance_to_edge(pos)
 				if d < best_d:
 					best_d = d
