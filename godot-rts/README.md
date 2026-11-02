@@ -2,8 +2,24 @@
 
 An original, compact real-time strategy game for Android phones in landscape.
 Gather resources, grow your village, raise an army and destroy the enemy Town Center
-before they destroy yours. All art is drawn in code with simple shapes; there are
-no third-party or copyrighted assets.
+before they destroy yours. All art is procedural (drawn in code and shaders); there
+are no third-party or copyrighted assets.
+
+## Look and feel
+
+- **3/4 top-down medieval style**: stone-keep Town Center with towers and banners,
+  timber-frame thatched houses, a barracks hall with weapon racks, and construction
+  stages with scaffolding.
+- **Animated units**: walk cycles, axes/picks/hammers swinging while working, carried
+  logs/sacks/stones, swordsmen with helmets and shields, archers drawing bows.
+- **Effects**: wood chips, gold sparks, dust, chimney smoke, fire and smoke on damaged
+  buildings, arrows flying in arcs, corpses, rubble and tree stumps.
+- **Terrain shader**: textured grass with flowers, dirt yards and roads, ponds with
+  animated water, foam and sandy shores.
+- **Fog of war**: unexplored land is black, explored land you can't currently see is
+  dimmed, and enemies are hidden outside your vision.
+- **Medieval HUD**: wood-and-gold panels, serif font, drawn resource icons, a portrait
+  of the selection with HP, and picture buttons.
 
 ## Gameplay
 
@@ -67,9 +83,15 @@ godot-rts/
 ├── export_presets.cfg     # Android preset (arm64-v8a, landscape, immersive)
 ├── core/
 │   ├── game.gd            # Autoload "Game": data tables, economy, registry, selection, win/lose
-│   └── entity.gd          # Base class: team, HP, damage, death, health bar
+│   ├── entity.gd          # Base class: team, HP, damage, death, health bar
+│   └── art.gd             # Procedural art shared by units, buildings, resources and UI
+├── fx/
+│   ├── fx.gd              # Single-node particle system (chips, dust, smoke, fire)
+│   └── decal.gd           # Fading corpses, rubble and stumps
 ├── map/
-│   ├── game_map.gd/.tscn  # Map generation, ground texture, AStarGrid2D, tile occupancy
+│   ├── game_map.gd/.tscn  # Map generation, terrain, ponds, AStarGrid2D, tile occupancy
+│   ├── ground.gdshader    # Procedural grass/dirt/water shader
+│   ├── fog_of_war.gd      # Player vision and explored-area tracking
 │   └── resource_node.*    # Trees, gold, stone
 ├── units/
 │   ├── unit.gd/.tscn      # Unit state machine: idle/move/attack/gather/return/build
@@ -78,6 +100,7 @@ godot-rts/
 │   └── building.gd/.tscn  # Construction, training queue, rally point, drop-off, TC arrows
 ├── ui/
 │   ├── hud.gd/.tscn       # Mobile HUD (built in code, adapts to any aspect ratio)
+│   ├── icon_view.gd       # Renders game art inside HUD buttons and the portrait
 │   ├── minimap.gd
 │   ├── placement_ghost.gd
 │   └── tap_marker.gd
@@ -98,9 +121,11 @@ godot-rts/
 - Pathfinding uses one `AStarGrid2D` (64×64, diagonal moves only around obstacles).
   Buildings and resources mark their tiles solid. Units steer between waypoints, and a
   cheap spatial-hash separation pass stops them from stacking.
-- Performance: the ground is a single 64×64 texture scaled ×32 (one draw call), and every
-  entity redraws only when its state changes. The whole simulation costs ~0.2 ms per frame
-  headless (measured by the smoke test), leaving plenty of headroom for 60 fps on phones.
+- Performance: the ground is one shader-drawn sprite fed by a 64×64 terrain map, and fog
+  of war is one 64×64 texture. Static art (trees, mines, buildings) is cached by Godot and
+  only redrawn when it changes. Animated units redraw at 15 fps, and all particles share
+  one node. The simulation costs about 0.4 ms per frame headless (measured by the smoke
+  test).
 
 ## Opening and running
 

@@ -14,6 +14,7 @@ const ALPHA := [255, 130, 0]
 const BUILDING_SIGHT := 150.0
 
 var state := PackedByteArray()
+var reveal_all := false  ## Debug: show the whole map.
 var _img: Image
 var _tex: ImageTexture
 var _bytes := PackedByteArray()
@@ -45,8 +46,8 @@ func _process(delta: float) -> void:
 
 func refresh() -> void:
 	for i in state.size():
-		if state[i] == 2:
-			state[i] = 1
+		if state[i] == 2 or reveal_all:
+			state[i] = 2 if reveal_all else 1
 	for u in Game.units:
 		if u.team == Game.PLAYER and not u.dead:
 			_reveal(u.position, u.sight + 20.0)

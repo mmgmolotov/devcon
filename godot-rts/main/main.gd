@@ -3,6 +3,7 @@ extends Node2D
 
 const MAP_SEED := 20240611
 const START_VILLAGERS := 3
+const DEFAULT_ZOOM := 1.3
 
 @onready var game_map: GameMap = $GameMap
 @onready var entities: Node2D = $Entities
@@ -28,7 +29,8 @@ func _ready() -> void:
 	for team in 2:
 		_spawn_base(team)
 	$Fog.setup()
-	camera.center_on(game_map.start_center(Game.PLAYER) + Vector2(160, -60))
+	camera.zoom = Vector2(DEFAULT_ZOOM, DEFAULT_ZOOM)
+	camera.center_on(game_map.start_center(Game.PLAYER) + Vector2(140, -20))
 
 
 func _spawn_base(team: int) -> void:

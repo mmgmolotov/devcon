@@ -41,7 +41,8 @@ func _draw() -> void:
 		_ground = ImageTexture.create_from_image(Game.map.ground_image)
 	var world := Game.map.get_world_size()
 	var k := size / world
-	draw_rect(Rect2(Vector2.ZERO, size).grow(2), Color(0, 0, 0, 0.8))
+	draw_rect(Rect2(Vector2.ZERO, size).grow(6), Color(0.2, 0.13, 0.08))
+	draw_rect(Rect2(Vector2.ZERO, size).grow(5), Color(0.83, 0.66, 0.32), false, 3.0)
 	draw_texture_rect(_ground, Rect2(Vector2.ZERO, size), false)
 	var cell := Vector2(Game.TILE, Game.TILE) * k
 	for r in Game.resources:
