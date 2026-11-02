@@ -14,6 +14,7 @@ const RESOURCE_SCENE := preload("res://map/resource_node.tscn")
 var start_cells: Array[Vector2i] = [Vector2i(8, 52), Vector2i(53, 9)]
 var astar := AStarGrid2D.new()
 var occupancy := {}  # Vector2i -> Building or ResourceNode
+var water := {}      # Vector2i -> true for impassable pond tiles
 var ground_image: Image
 var rng := RandomNumberGenerator.new()
 
@@ -21,14 +22,16 @@ var rng := RandomNumberGenerator.new()
 func generate(seed_value: int) -> void:
 	rng.seed = seed_value
 	occupancy.clear()
+	water.clear()
 	astar.region = Rect2i(0, 0, N, N)
 	astar.cell_size = Vector2(T, T)
 	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
 	astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
 	astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
 	astar.update()
-	_build_ground()
+	_place_water()
 	_place_resources()
+	_build_ground()
 
 
 func get_world_size() -> Vector2:
@@ -78,7 +81,7 @@ func is_area_free(cell: Vector2i, size: Vector2i, margin := 0) -> bool:
 				if inside:
 					return false
 				continue
-			if occupancy.has(c):
+			if occupancy.has(c) or water.has(c):
 				return false
 	return true
 
@@ -177,30 +180,75 @@ func _mirror(c: Vector2i) -> Vector2i:
 	return Vector2i(N - 1 - c.x, N - 1 - c.y)
 
 
+## Builds the terrain map (dirt/water weights) rendered by ground.gdshader,
+## plus a small colour image used by the minimap.
 func _build_ground() -> void:
+	var terrain := Image.create(N, N, false, Image.FORMAT_RGBA8)
+	ground_image = Image.create(N, N, false, Image.FORMAT_RGB8)
+	var centers := [start_center(0) / T, start_center(1) / T]
 	var noise := FastNoiseLite.new()
 	noise.seed = rng.randi()
 	noise.frequency = 0.09
-	ground_image = Image.create(N, N, false, Image.FORMAT_RGB8)
-	var centers := [start_center(0) / T, start_center(1) / T]
 	for y in N:
 		for x in N:
-			var v := (noise.get_noise_2d(x, y) + 1.0) * 0.5
-			var c := Color(0.34, 0.56, 0.25).lerp(Color(0.45, 0.66, 0.3), v)
-			if (x + y) % 2 == 0:
-				c = c.darkened(0.035)
+			var p := Vector2(x + 0.5, y + 0.5)
+			var dirt := 0.0
 			for ctr in centers:
-				var d: float = ctr.distance_to(Vector2(x + 0.5, y + 0.5))
-				if d < 5.5:
-					c = c.lerp(Color(0.6, 0.52, 0.36), clampf((5.5 - d) / 2.5, 0.0, 0.75))
-			ground_image.set_pixel(x, y, c)
+				dirt = maxf(dirt, clampf((6.5 - ctr.distance_to(p)) / 2.5, 0.0, 1.0))
+			var road := _dist_to_segment(p, centers[0], centers[1])
+			road = minf(road, _dist_to_segment(p, centers[0], Vector2(centers[0].x + 14, centers[0].y - 2)))
+			road = minf(road, _dist_to_segment(p, centers[1], Vector2(centers[1].x - 14, centers[1].y + 2)))
+			dirt = maxf(dirt, clampf((1.4 - road) / 1.2, 0.0, 0.85))
+			var c := Vector2i(x, y)
+			var wet := 1.0 if water.has(c) else 0.0
+			terrain.set_pixel(x, y, Color(dirt, wet, 0.0, 1.0))
+			var v := (noise.get_noise_2d(x, y) + 1.0) * 0.5
+			var col := Color(0.3, 0.5, 0.2).lerp(Color(0.42, 0.6, 0.25), v)
+			col = col.lerp(Color(0.58, 0.48, 0.32), dirt * 0.8)
+			if wet > 0.0:
+				col = Color(0.16, 0.38, 0.55)
+			ground_image.set_pixel(x, y, col)
+	var noise_tex := NoiseTexture2D.new()
+	noise_tex.width = 256
+	noise_tex.height = 256
+	noise_tex.seamless = true
+	var fn := FastNoiseLite.new()
+	fn.seed = 1234
+	fn.frequency = 0.03
+	fn.fractal_octaves = 3
+	noise_tex.noise = fn
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://map/ground.gdshader")
+	mat.set_shader_parameter("noise_tex", noise_tex)
+	mat.set_shader_parameter("map_px", get_world_size())
 	var s := Sprite2D.new()
 	s.name = "Ground"
-	s.texture = ImageTexture.create_from_image(ground_image)
+	s.texture = ImageTexture.create_from_image(terrain)
 	s.centered = false
 	s.scale = Vector2(T, T)
-	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	s.material = mat
 	add_child(s)
+
+
+## Two mirrored ponds placed away from the bases and the main route.
+func _place_water() -> void:
+	var pc := start_center(0) / T
+	var ec := start_center(1) / T
+	var placed := 0
+	var tries := 0
+	while placed < 2 and tries < 300:
+		tries += 1
+		var ctr := Vector2(rng.randf_range(7, N - 7), rng.randf_range(7, N - 7))
+		if ctr.distance_to(pc) < 14.0 or ctr.distance_to(ec) < 14.0 or _dist_to_segment(ctr, pc, ec) < 7.0:
+			continue
+		if ctr.distance_to(Vector2(N, N) - ctr) < 12.0:
+			continue
+		for c in _blob(ctr, rng.randf_range(2.2, 3.2)):
+			for cc in [c, _mirror(c)]:
+				water[cc] = true
+				astar.set_point_solid(cc, true)
+		placed += 1
 
 
 func _place_resources() -> void:
@@ -280,7 +328,7 @@ func _dist_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
 
 
 func _add_resource(c: Vector2i, type: String) -> void:
-	if not in_bounds(c) or occupancy.has(c):
+	if not in_bounds(c) or occupancy.has(c) or water.has(c):
 		return
 	var r: ResourceNode = RESOURCE_SCENE.instantiate()
 	r.setup(type, c, rng)
